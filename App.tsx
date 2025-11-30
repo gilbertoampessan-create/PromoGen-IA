@@ -1,6 +1,7 @@
+
 import React, { useState, useRef, useEffect } from 'react';
-import { Sparkles, Download, LayoutTemplate, Palette, Wand2, ImagePlus, Type, AlignLeft, AlignCenter, AlignRight, Square, Smartphone, RectangleHorizontal, Upload, MessageSquarePlus, ImageIcon, ArrowUpToLine, ArrowDownToLine, FoldVertical, RefreshCw, Building2, Phone, Trash2, Crown, LogOut, User as UserIcon, CheckCircle2, PencilLine, Diamond, Utensils, Cpu, Leaf, Eraser, Briefcase, Plus, Save } from 'lucide-react';
-import { OfferData, GeneratedImageState, ImageAspect, GenerationMode, CompanyInfo, AuthState, BannerContent, Brand } from './types';
+import { Sparkles, Download, LayoutTemplate, Palette, Wand2, ImagePlus, Type, AlignLeft, AlignCenter, AlignRight, Square, Smartphone, RectangleHorizontal, Upload, MessageSquarePlus, ImageIcon, ArrowUpToLine, ArrowDownToLine, FoldVertical, RefreshCw, Building2, Phone, Trash2, Crown, LogOut, User as UserIcon, CheckCircle2, PencilLine, Diamond, Utensils, Cpu, Leaf, Eraser, Briefcase, Plus, Save, MessageCircle, ALargeSmall, ChevronDown, ChevronUp, Calendar } from 'lucide-react';
+import { OfferData, GeneratedImageState, ImageAspect, GenerationMode, CompanyInfo, AuthState, BannerContent, Brand, PlanType } from './types';
 import { generateBackgroundFromText } from './services/geminiService';
 import { storageService } from './services/storageService';
 import { PreviewCanvas } from './components/PreviewCanvas';
@@ -9,6 +10,7 @@ import { LandingPage } from './components/LandingPage';
 import { AuthScreen } from './components/AuthScreen';
 import { SubscriptionModal } from './components/SubscriptionModal';
 import { AdminDashboard } from './components/AdminDashboard'; 
+import { UserProfileModal } from './components/UserProfileModal';
 import html2canvas from 'html2canvas';
 
 const App: React.FC = () => {
@@ -21,6 +23,8 @@ const App: React.FC = () => {
 
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [isQuotaTriggered, setIsQuotaTriggered] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [targetSubscriptionPlan, setTargetSubscriptionPlan] = useState<PlanType | undefined>(undefined);
 
   // --- App Logic ---
   useEffect(() => {
@@ -55,6 +59,7 @@ const App: React.FC = () => {
       isAuthenticated: false,
       view: 'landing'
     });
+    setShowProfileModal(false);
   };
 
   const checkQuotaAndOpenModal = () => {
@@ -69,9 +74,18 @@ const App: React.FC = () => {
     return true;
   };
 
-  const openSubscriptionManagement = () => {
+  const openSubscriptionManagement = (plan?: PlanType) => {
     setIsQuotaTriggered(false);
+    setTargetSubscriptionPlan(plan);
     setShowSubscriptionModal(true);
+  };
+
+  const openSupportWhatsApp = () => {
+    const settings = storageService.getSettings();
+    const number = settings.whatsappNumber || '5511999999999';
+    const message = settings.whatsappMessage || 'Olá, preciso de ajuda com o PromoGen.';
+    const url = `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank');
   };
 
   // --- Main App State ---
@@ -80,6 +94,7 @@ const App: React.FC = () => {
     highlightText: 'R$ 299,90',
     textColor: 'white',
     font: 'modern',
+    fontSize: 'medium',
     layout: 'center',
     verticalAlignment: 'center',
     aspect: ImageAspect.SQUARE,
@@ -115,6 +130,7 @@ const App: React.FC = () => {
   const previewRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
+  const brandSectionRef = useRef<HTMLDivElement>(null); // Ref for brand section scrolling
 
   // Load Saved Company Info (Fallback) or Load Brands (Agency)
   useEffect(() => {
@@ -201,6 +217,7 @@ const App: React.FC = () => {
       setBrands(prev => [...prev, newBrand]);
       setBrandInternalName('');
       setSelectedBrandId(newBrand.id);
+      alert("Marca salva com sucesso!");
   };
 
   const deleteBrand = () => {
@@ -235,7 +252,7 @@ const App: React.FC = () => {
 
   // --- Style Selection Logic ---
   const applyStyle = (style: string) => {
-    let update = { offerStyle: style as any };
+    let update = { offerStyle: style as any, fontSize: 'medium' as any };
     // Auto-configure props based on style
     switch (style) {
       case 'luxury':
@@ -373,7 +390,7 @@ const App: React.FC = () => {
   const currentDisplayImage = imageState.images.length > 0 ? imageState.images[imageState.selectedIndex] : (mode === 'upload' ? uploadedImage : null);
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row">
+    <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row relative">
       {/* Subscription Modal */}
       {authState.user && (
         <SubscriptionModal 
@@ -382,17 +399,34 @@ const App: React.FC = () => {
                 setShowSubscriptionModal(false);
                 const updatedUser = storageService.getCurrentUser();
                 setAuthState(prev => ({ ...prev, user: updatedUser }));
+                setTargetSubscriptionPlan(undefined);
             }} 
             userId={authState.user.id}
             isUpgradeTriggered={isQuotaTriggered}
+            initialPlan={targetSubscriptionPlan}
+        />
+      )}
+      
+      {/* User Profile Modal */}
+      {authState.user && (
+        <UserProfileModal 
+            isOpen={showProfileModal}
+            onClose={() => setShowProfileModal(false)}
+            user={authState.user}
+            onLogout={handleLogout}
+            onPlanChange={(newPlan) => {
+                // When user selects a new plan in profile, close profile and open payment modal
+                setShowProfileModal(false);
+                openSubscriptionManagement(newPlan);
+            }}
         />
       )}
       
       {/* Left Panel: Controls */}
       <div className="w-full md:w-1/3 lg:w-1/4 bg-white border-r border-slate-200 h-auto md:h-screen overflow-y-auto p-6 shadow-xl z-10 flex flex-col">
         
-        {/* Header with User Info */}
-        <div className="mb-6 pb-6 border-b border-slate-100">
+        {/* Header with User Info & Profile Click */}
+        <div className="mb-6 pb-6 border-b border-slate-100 relative">
           <div className="flex items-center justify-between mb-4">
              <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
                 <Sparkles className="text-brand-600 fill-brand-100 w-5 h-5" />
@@ -404,9 +438,14 @@ const App: React.FC = () => {
              </div>}
           </div>
           
-          <div className="flex items-center justify-between bg-slate-50 p-3 rounded-xl border border-slate-100">
+          {/* User Profile Trigger */}
+          <div 
+            className="flex items-center justify-between bg-slate-50 p-3 rounded-xl border border-slate-100 cursor-pointer hover:bg-slate-100 transition-colors group"
+            onClick={() => setShowProfileModal(true)}
+            title="Gerenciar Conta"
+          >
             <div className="flex items-center gap-2 overflow-hidden">
-                <div className="w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center text-slate-500">
+                <div className="w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center text-slate-500 group-hover:bg-brand-100 group-hover:text-brand-600 transition-colors">
                     <UserIcon className="w-4 h-4" />
                 </div>
                 <div className="flex flex-col">
@@ -414,30 +453,30 @@ const App: React.FC = () => {
                     <span className="text-[10px] text-slate-400 truncate">{isPro ? 'Ilimitado' : `${quota.used}/2 hoje`}</span>
                 </div>
             </div>
-            <div className="flex gap-1">
-                {!isPro && (
-                    <button onClick={openSubscriptionManagement} className="p-1.5 text-brand-600 hover:bg-brand-50 rounded-lg transition-colors" title="Fazer Upgrade">
-                        <Crown className="w-4 h-4" />
-                    </button>
-                )}
-                <button onClick={handleLogout} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Sair">
-                    <LogOut className="w-4 h-4" />
-                </button>
-            </div>
+            <Crown className="w-4 h-4 text-slate-300 group-hover:text-brand-500" />
           </div>
-          
+
           {!isPro && (
-             <button onClick={openSubscriptionManagement} className="w-full mt-3 py-2 bg-gradient-to-r from-slate-900 to-slate-800 text-white text-xs font-bold rounded-lg shadow-md hover:opacity-90 transition-opacity flex items-center justify-center gap-2">
+             <button onClick={() => openSubscriptionManagement('pro')} className="w-full mt-3 py-2 bg-gradient-to-r from-slate-900 to-slate-800 text-white text-xs font-bold rounded-lg shadow-md hover:opacity-90 transition-opacity flex items-center justify-center gap-2">
                  <Crown className="w-3 h-3 text-yellow-400 fill-yellow-400" />
                  Seja PRO - R$ 97/ano
              </button>
           )}
+
+           {isAgency && (
+                <button 
+                    onClick={() => brandSectionRef.current?.scrollIntoView({ behavior: 'smooth' })} 
+                    className="w-full mt-2 py-1.5 bg-purple-50 text-purple-700 text-xs font-medium rounded-lg border border-purple-100 hover:bg-purple-100 transition-colors flex items-center justify-center gap-2"
+                >
+                    <Briefcase className="w-3 h-3" /> Clientes Salvos
+                </button>
+            )}
         </div>
 
         <div className="space-y-6 flex-1">
           
           {/* Company Identity Section */}
-          <div className="space-y-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+          <div ref={brandSectionRef} className="space-y-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1">
                 <Building2 className="w-3 h-3" /> Identidade da Marca
@@ -511,7 +550,7 @@ const App: React.FC = () => {
 
           <hr className="border-slate-100" />
           
-          {/* --- STYLE LIBRARY (NEW) --- */}
+          {/* --- STYLE LIBRARY --- */}
           <div className="space-y-4">
              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1">
                 <Wand2 className="w-3 h-3" /> Estilos Rápidos (1-Click)
@@ -549,7 +588,7 @@ const App: React.FC = () => {
                 </button>
              </div>
              
-             {/* PRODUCT ISOLATION TOGGLE (NEW) */}
+             {/* PRODUCT ISOLATION TOGGLE */}
              <div className="flex items-center justify-between bg-slate-100 p-3 rounded-lg border border-slate-200 cursor-pointer" onClick={() => setOfferData(prev => ({...prev, isolateProduct: !prev.isolateProduct}))}>
                 <div className="flex items-center gap-2">
                    <div className="p-1 bg-white rounded-md shadow-sm text-slate-600">
@@ -660,6 +699,31 @@ const App: React.FC = () => {
                       className={`py-2 px-1 rounded-lg border text-xs transition-all font-handwritten ${offerData.font === 'handwritten' ? 'bg-brand-50 border-brand-500 text-brand-700' : 'bg-white border-slate-200 text-slate-600'}`}
                     >
                       Manual
+                    </button>
+                  </div>
+               </div>
+
+                {/* Font Size Selection */}
+               <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-2 flex items-center gap-1"><ALargeSmall className="w-3 h-3" /> Tamanho da Fonte</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    <button 
+                      onClick={() => setOfferData(prev => ({ ...prev, fontSize: 'small' }))} 
+                      className={`py-2 px-1 rounded-lg border text-xs transition-all font-bold ${offerData.fontSize === 'small' ? 'bg-brand-50 border-brand-500 text-brand-700' : 'bg-white border-slate-200 text-slate-600'}`}
+                    >
+                      Pequeno
+                    </button>
+                    <button 
+                      onClick={() => setOfferData(prev => ({ ...prev, fontSize: 'medium' }))} 
+                      className={`py-2 px-1 rounded-lg border text-xs transition-all font-bold ${offerData.fontSize === 'medium' ? 'bg-brand-50 border-brand-500 text-brand-700' : 'bg-white border-slate-200 text-slate-600'}`}
+                    >
+                      Médio
+                    </button>
+                    <button 
+                      onClick={() => setOfferData(prev => ({ ...prev, fontSize: 'large' }))} 
+                      className={`py-2 px-1 rounded-lg border text-xs transition-all font-bold ${offerData.fontSize === 'large' ? 'bg-brand-50 border-brand-500 text-brand-700' : 'bg-white border-slate-200 text-slate-600'}`}
+                    >
+                      Grande
                     </button>
                   </div>
                </div>
@@ -776,6 +840,19 @@ const App: React.FC = () => {
 
         </div>
       </div>
+
+      {/* Floating Support Button for App Users */}
+      <button 
+        onClick={openSupportWhatsApp}
+        className="fixed bottom-6 right-6 bg-[#25D366] hover:bg-[#20bd5a] text-white p-4 rounded-full shadow-lg hover:shadow-xl transition-all hover:scale-110 z-50 flex items-center justify-center group"
+        title="Falar com Suporte"
+      >
+        <MessageCircle className="w-6 h-6 fill-current" />
+        <span className="absolute right-full mr-3 bg-slate-900 text-white text-xs font-bold py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+          Suporte
+        </span>
+      </button>
+
     </div>
   );
 };

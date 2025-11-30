@@ -1,3 +1,4 @@
+
 import React, { useRef, forwardRef } from 'react';
 import { OfferData, BannerContent, ImageAspect, CompanyInfo } from '../types';
 import { Sparkles } from 'lucide-react';
@@ -12,7 +13,7 @@ interface PreviewCanvasProps {
 }
 
 export const PreviewCanvas = forwardRef<HTMLDivElement, PreviewCanvasProps>(({ data, companyInfo, backgroundImage, content, isLoading, isPro }, ref) => {
-  const { offerText, textColor, layout, verticalAlignment, aspect, font } = data;
+  const { offerText, textColor, layout, verticalAlignment, aspect, font, fontSize } = data;
 
   const getTextColorClasses = () => {
     switch (textColor) {
@@ -114,6 +115,34 @@ export const PreviewCanvas = forwardRef<HTMLDivElement, PreviewCanvasProps>(({ d
     }
   };
 
+  const getFontSizeClasses = (type: 'headline' | 'subtext' | 'highlight') => {
+    const isPortrait = aspect === ImageAspect.PORTRAIT;
+    
+    switch (type) {
+      case 'headline':
+        switch (fontSize) {
+          case 'small': return isPortrait ? 'text-2xl' : 'text-3xl md:text-4xl';
+          case 'large': return isPortrait ? 'text-4xl' : 'text-5xl md:text-6xl';
+          case 'medium': 
+          default: return isPortrait ? 'text-3xl' : 'text-4xl md:text-5xl';
+        }
+      case 'subtext':
+        switch (fontSize) {
+          case 'small': return 'text-sm md:text-base';
+          case 'large': return 'text-lg md:text-2xl';
+          case 'medium':
+          default: return isPortrait ? 'text-base' : 'text-lg md:text-xl';
+        }
+      case 'highlight':
+         switch (fontSize) {
+          case 'small': return isPortrait ? 'text-lg px-4 py-2' : 'text-lg md:text-xl px-5 py-2';
+          case 'large': return isPortrait ? 'text-2xl px-8 py-4' : 'text-2xl md:text-4xl px-8 py-4';
+          case 'medium':
+          default: return isPortrait ? 'text-xl px-6 py-3' : 'text-xl md:text-2xl px-6 py-3';
+        }
+    }
+  };
+
   // Placeholder background if none generated
   const backgroundStyle = backgroundImage 
     ? { backgroundImage: `url(${backgroundImage})` }
@@ -178,20 +207,20 @@ export const PreviewCanvas = forwardRef<HTMLDivElement, PreviewCanvasProps>(({ d
             <>
               {/* Headline */}
               <div 
-                className={`font-extrabold leading-tight drop-shadow-xl ${colors.main} ${aspect === ImageAspect.PORTRAIT ? 'text-3xl' : 'text-4xl md:text-5xl'}`} 
+                className={`font-extrabold leading-tight drop-shadow-xl ${colors.main} ${getFontSizeClasses('headline')}`} 
                 style={{ fontFamily: getFontFamily() }}
               >
                 {content.headline}
               </div>
 
               {/* Subtext - Note whitespace-pre-line for vertical lists */}
-              <div className={`font-medium leading-relaxed max-w-[90%] drop-shadow-md whitespace-pre-line ${colors.sub} ${aspect === ImageAspect.PORTRAIT ? 'text-base' : 'text-lg md:text-xl'}`}>
+              <div className={`font-medium leading-relaxed max-w-[90%] drop-shadow-md whitespace-pre-line ${colors.sub} ${getFontSizeClasses('subtext')}`}>
                 {content.subtext}
               </div>
 
               {/* Highlight/Price Pill */}
               <div 
-                className={`mt-4 px-6 py-3 rounded-full shadow-xl transform scale-105 tracking-wide ${colors.pill} ${aspect === ImageAspect.PORTRAIT ? 'text-xl' : 'text-xl md:text-2xl'}`}
+                className={`mt-4 rounded-full shadow-xl transform scale-105 tracking-wide ${colors.pill} ${getFontSizeClasses('highlight')}`}
                 style={{ fontFamily: getFontFamily(), fontWeight: 700 }}
               >
                 {content.highlight}
@@ -200,7 +229,7 @@ export const PreviewCanvas = forwardRef<HTMLDivElement, PreviewCanvasProps>(({ d
           ) : (
             // Fallback / Initial State (Raw Text)
             <div 
-              className={`text-4xl font-bold whitespace-pre-wrap leading-tight drop-shadow-lg ${colors.main}`}
+              className={`font-bold whitespace-pre-wrap leading-tight drop-shadow-lg ${colors.main} ${getFontSizeClasses('headline')}`}
               style={{ fontFamily: getFontFamily() }}
             >
               {offerText || "Digite sua oferta..."}

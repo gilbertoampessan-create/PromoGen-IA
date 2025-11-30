@@ -1,12 +1,24 @@
+
 import { GoogleGenAI } from "@google/genai";
 import { BannerContent, ImageAspect } from "../types";
-
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+import { storageService } from "./storageService";
 
 interface GenerationResult {
   images: string[];
   content: BannerContent;
 }
+
+// Helper to get initialized Gemini client
+const getGeminiClient = () => {
+  const settings = storageService.getSettings();
+  // Prioritize key from Admin Settings, fallback to env variable
+  const apiKey = settings.googleApiKey || process.env.API_KEY;
+  
+  if (!apiKey) {
+    throw new Error("Chave da API do Google não configurada. Configure no Painel Admin.");
+  }
+  return new GoogleGenAI({ apiKey });
+};
 
 // Helper to clean JSON string
 const cleanText = (text: string): string => {
@@ -111,6 +123,8 @@ export const generateBackgroundFromText = async (
 
   try {
     // --- STEP 1: TEXT & PROMPT GENERATION (Gemini 2.5 Flash) ---
+    // Initialize AI Client Dynamically
+    const ai = getGeminiClient();
     const modelId = 'gemini-2.5-flash';
     
     const parts: any[] = [{ text: systemPrompt }];

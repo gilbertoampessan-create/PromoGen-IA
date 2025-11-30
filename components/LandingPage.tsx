@@ -1,6 +1,8 @@
-import React from 'react';
+
+import React, { useEffect, useState } from 'react';
 import { Sparkles, CheckCircle2, Zap, LayoutTemplate, Smartphone, ArrowRight, ShieldCheck, MessageCircle, Star, Quote, Building2, Briefcase } from 'lucide-react';
 import { Button } from './Button';
+import { storageService } from '../services/storageService';
 
 interface LandingPageProps {
   onStart: () => void;
@@ -8,6 +10,16 @@ interface LandingPageProps {
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) => {
+  
+  const [whatsappUrl, setWhatsappUrl] = useState('');
+
+  useEffect(() => {
+    const settings = storageService.getSettings();
+    const number = settings.whatsappNumber || '5511999999999';
+    const message = settings.whatsappMessage || 'Olá, gostaria de saber mais sobre o PromoGen.';
+    setWhatsappUrl(`https://wa.me/${number}?text=${encodeURIComponent(message)}`);
+  }, []);
+
   return (
     <div className="min-h-screen bg-slate-50 font-sans">
       {/* Navbar */}
@@ -290,7 +302,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
                   <CheckCircle2 className="w-5 h-5 text-yellow-400" /> Licença Comercial Estendida
                 </li>
               </ul>
-              <Button onClick={onStart} className="w-full bg-white text-purple-900 hover:bg-purple-50 border-none font-bold">
+              <Button onClick={onStart} className="w-full !bg-yellow-400 !text-purple-900 !hover:bg-yellow-500 border-none font-bold">
                 Plano Agência
               </Button>
             </div>
@@ -308,7 +320,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
 
       {/* WhatsApp Support Button */}
       <a 
-        href="https://wa.me/" 
+        href={whatsappUrl}
         target="_blank" 
         rel="noopener noreferrer"
         className="fixed bottom-6 right-6 bg-[#25D366] hover:bg-[#20bd5a] text-white p-4 rounded-full shadow-lg hover:shadow-xl transition-all hover:scale-110 z-50 flex items-center justify-center group"

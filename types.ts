@@ -1,8 +1,10 @@
+
 export interface OfferData {
   offerText: string;
   highlightText: string;
   textColor: 'white' | 'black' | 'brand' | 'red' | 'yellow' | 'green' | 'purple' | 'pink' | 'orange' | 'teal' | 'navy';
   font: 'modern' | 'classic' | 'handwritten';
+  fontSize: 'small' | 'medium' | 'large'; // Novo campo
   layout: 'center' | 'left' | 'right';
   verticalAlignment: 'top' | 'center' | 'bottom';
   aspect: ImageAspect;
@@ -61,6 +63,7 @@ export interface User {
   createdAt: string;
   isAdmin?: boolean;
   lifetimeGenerations?: number;
+  subscriptionExpiry?: string; // Data de validade da assinatura (ISO String)
 }
 
 export interface UsageLog {
@@ -81,4 +84,12 @@ export interface AdminStats {
   mrr: number;
   totalGenerations: number;
   estimatedCost: number;
+}
+
+export interface SystemSettings {
+  proPlanLink: string;
+  agencyPlanLink: string;
+  googleApiKey: string;
+  whatsappNumber: string;
+  whatsappMessage: string; // Mensagem padrão para a URA
 }

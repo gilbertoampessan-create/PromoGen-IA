@@ -1,62 +1,62 @@
-import React, { useState } from 'react';
-import { X, Sparkles, Check, Crown, ShieldCheck, Briefcase, ExternalLink, Loader2 } from 'lucide-react';
+
+import React, { useState, useEffect } from 'react';
+import { X, Sparkles, Check, Crown, ShieldCheck, Briefcase, ExternalLink, MessageCircle } from 'lucide-react';
 import { Button } from './Button';
 import { storageService } from '../services/storageService';
 import { PlanType } from '../types';
-
-// COLOQUE SEUS LINKS REAIS AQUI
-// Ex: "https://mpago.la/2Ya3sW"
-const MP_LINK_PRO = "https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=placeholder-pro"; 
-const MP_LINK_AGENCY = "https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=placeholder-agency";
 
 interface SubscriptionModalProps {
   isOpen: boolean;
   onClose: () => void;
   userId: string;
   isUpgradeTriggered: boolean; // If true, shows "Quota Exceeded" message
+  initialPlan?: PlanType; // New prop to pre-select plan
 }
 
 type ModalStep = 'select' | 'payment_pending' | 'success';
 
-export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose, userId, isUpgradeTriggered }) => {
+export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose, userId, isUpgradeTriggered, initialPlan }) => {
   const [step, setStep] = useState<ModalStep>('select');
-  const [processing, setProcessing] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<PlanType>('pro');
+
+  // Initialize plan based on prop, default to 'pro' if free or undefined passed
+  useEffect(() => {
+    if (isOpen) {
+        if (initialPlan && initialPlan !== 'free') {
+            setSelectedPlan(initialPlan);
+        } else {
+            setSelectedPlan('pro');
+        }
+    }
+  }, [isOpen, initialPlan]);
 
   if (!isOpen) return null;
 
   const handleSubscribeClick = () => {
-      // 1. Get correct link
-      const link = selectedPlan === 'agency' ? MP_LINK_AGENCY : MP_LINK_PRO;
+      // 1. Get correct link from dynamic settings
+      const settings = storageService.getSettings();
+      const link = selectedPlan === 'agency' ? settings.agencyPlanLink : settings.proPlanLink;
       
       // 2. Open in new tab
-      window.open(link, '_blank');
+      if (link && link !== '') {
+          window.open(link, '_blank');
+      } else {
+          alert("Erro: Link de pagamento não configurado pelo administrador.");
+          return;
+      }
       
       // 3. Change step to waiting
       setStep('payment_pending');
   };
 
-  const handleConfirmPayment = async () => {
-    setProcessing(true);
-    
-    // 4. Simulate payment validation check with "backend"
-    const isValid = await storageService.validatePayment(userId);
-    
-    if (isValid) {
-        storageService.upgradeToPro(userId, selectedPlan);
-        setStep('success');
-        setTimeout(() => {
-            onClose();
-            // Reset state for next time
-            setTimeout(() => {
-                setStep('select');
-                setProcessing(false);
-            }, 500);
-        }, 3000);
-    } else {
-        alert("Pagamento ainda não confirmado. Tente novamente em alguns instantes.");
-        setProcessing(false);
-    }
+  const handleWhatsAppContact = () => {
+      const settings = storageService.getSettings();
+      const planName = selectedPlan === 'agency' ? 'Plano Agência' : 'Plano Profissional';
+      const message = `Olá! Acabei de fazer o pagamento do *${planName}* no PromoGen. Segue meu email de cadastro (${storageService.getCurrentUser()?.email}) para liberação do acesso.`;
+      
+      const whatsappUrl = `https://wa.me/${settings.whatsappNumber || '5511999999999'}?text=${encodeURIComponent(message)}`;
+      window.open(whatsappUrl, '_blank');
+      onClose(); // Fecha o modal pois o fluxo continua fora
   };
 
   return (
@@ -85,15 +85,15 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, on
                 <p className="text-slate-600 mb-6 text-sm">
                     Abrimos a página de pagamento seguro do Mercado Pago em uma nova aba.
                     <br/><br/>
-                    Após concluir o pagamento, clique no botão abaixo para liberar seu acesso.
+                    <strong>Após concluir o pagamento, envie o comprovante no nosso WhatsApp para liberarmos seu acesso imediatamente.</strong>
                 </p>
                 
                 <Button 
-                    onClick={handleConfirmPayment} 
-                    isLoading={processing}
-                    className="w-full py-4 bg-green-600 hover:bg-green-700 shadow-green-500/20"
+                    onClick={handleWhatsAppContact} 
+                    className="w-full py-4 bg-[#25D366] hover:bg-[#20bd5a] shadow-lg shadow-green-500/20 text-white border-none font-bold"
+                    icon={<MessageCircle className="w-5 h-5" />}
                 >
-                    {processing ? 'Verificando...' : 'Já fiz o pagamento'}
+                    Enviar Comprovante no WhatsApp
                 </Button>
                 
                 <button 
@@ -128,17 +128,17 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, on
             </div>
 
             <div className="p-8">
-                {/* Plan Toggle */}
-                <div className="flex bg-slate-100 p-1 rounded-xl mb-6">
+                {/* Plan Toggle - High Contrast */}
+                <div className="flex bg-slate-100 p-1.5 rounded-xl mb-6">
                     <button 
                         onClick={() => setSelectedPlan('pro')} 
-                        className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${selectedPlan === 'pro' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
+                        className={`flex-1 py-3 rounded-lg text-sm font-bold transition-all ${selectedPlan === 'pro' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-500 hover:text-slate-900'}`}
                     >
                         Profissional
                     </button>
                     <button 
                         onClick={() => setSelectedPlan('agency')} 
-                        className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${selectedPlan === 'agency' ? 'bg-white shadow-sm text-purple-900' : 'text-slate-500 hover:text-slate-700'}`}
+                        className={`flex-1 py-3 rounded-lg text-sm font-bold transition-all ${selectedPlan === 'agency' ? 'bg-purple-900 text-white shadow-md' : 'text-slate-500 hover:text-purple-900'}`}
                     >
                         Agência (Multi-marcas)
                     </button>
@@ -194,9 +194,10 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, on
                     </div>
                 )}
 
+                {/* CTA Button - High Contrast & Extra Bold */}
                 <Button 
                     onClick={handleSubscribeClick} 
-                    className={`w-full py-4 text-lg shadow-xl ${selectedPlan === 'agency' ? 'bg-purple-600 hover:bg-purple-700 shadow-purple-500/20' : 'bg-brand-600 hover:bg-brand-700 shadow-brand-500/20'}`}
+                    className={`w-full py-4 text-lg font-extrabold shadow-xl ring-4 transition-all ${selectedPlan === 'agency' ? '!bg-purple-700 hover:!bg-purple-800 shadow-purple-900/20 ring-purple-50' : '!bg-brand-700 hover:!bg-brand-800 shadow-brand-900/20 ring-brand-50'}`}
                 >
                     <Sparkles className="w-5 h-5 mr-2 fill-current" />
                     {selectedPlan === 'agency' ? 'Ir para Pagamento (R$ 197)' : 'Ir para Pagamento (R$ 97)'}

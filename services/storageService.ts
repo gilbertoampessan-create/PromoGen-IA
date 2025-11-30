@@ -1,9 +1,12 @@
-import { User, UsageLog, PlanType, AdminStats, Brand } from '../types';
+
+
+import { User, UsageLog, PlanType, AdminStats, Brand, SystemSettings } from '../types';
 
 const USERS_KEY = 'promogen_users';
 const CURRENT_USER_KEY = 'promogen_current_session';
 const USAGE_KEY = 'promogen_usage_logs';
 const BRANDS_KEY = 'promogen_brands';
+const SETTINGS_KEY = 'promogen_settings';
 
 // Helper to get today's date string YYYY-MM-DD
 const getTodayString = () => new Date().toISOString().split('T')[0];
@@ -23,6 +26,14 @@ export const storageService = {
 
     // Se o admin não existe, OU se a senha for a antiga ('admin'), recria tudo.
     if (!admin || admin.password === 'admin' || admin.password === '123' || !agency) {
+      
+      // Datas calculadas para teste
+      const nextMonth = new Date();
+      nextMonth.setDate(nextMonth.getDate() + 31);
+      
+      const nextYear = new Date();
+      nextYear.setFullYear(nextYear.getFullYear() + 1);
+
       const testUsers = [
         {
           id: 'admin-id',
@@ -39,7 +50,8 @@ export const storageService = {
           email: 'agency@promogen.com',
           password: '123456',
           plan: 'agency', // Plano Agency
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
+          subscriptionExpiry: nextMonth.toISOString()
         },
         {
           id: 'free-user-id',
@@ -55,7 +67,8 @@ export const storageService = {
           email: 'pro@promogen.com',
           password: '123456',
           plan: 'pro',
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
+          subscriptionExpiry: nextYear.toISOString()
         }
       ];
       // Merge existing users with test users to avoid overwriting real registrations completely if logic changes,
@@ -164,9 +177,24 @@ export const storageService = {
   // --- Subscription ---
   upgradeToPro: (userId: string, plan: PlanType = 'pro') => {
     const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+    
+    // Calculate Expiry Date
+    const expiryDate = new Date();
+    if (plan === 'pro') {
+        // Pro = Annual
+        expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+    } else if (plan === 'agency') {
+        // Agency = Monthly (31 days)
+        expiryDate.setDate(expiryDate.getDate() + 31);
+    }
+
     const updatedUsers = users.map((u: any) => {
       if (u.id === userId) {
-        return { ...u, plan };
+        return { 
+            ...u, 
+            plan,
+            subscriptionExpiry: expiryDate.toISOString() 
+        };
       }
       return u;
     });
@@ -177,6 +205,7 @@ export const storageService = {
     const currentUser = storageService.getCurrentUser();
     if (currentUser && currentUser.id === userId) {
       currentUser.plan = plan;
+      currentUser.subscriptionExpiry = expiryDate.toISOString();
       localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(currentUser));
     }
   },
@@ -212,6 +241,34 @@ export const storageService = {
     localStorage.setItem(BRANDS_KEY, JSON.stringify(filteredBrands));
   },
 
+  // --- Settings (Payment Links & API Keys) ---
+  getSettings: (): SystemSettings => {
+    const saved = localStorage.getItem(SETTINGS_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      // Ensure new fields exist even in old saved data
+      return {
+        proPlanLink: parsed.proPlanLink || "https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=placeholder-pro",
+        agencyPlanLink: parsed.agencyPlanLink || "https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=placeholder-agency",
+        googleApiKey: parsed.googleApiKey || "",
+        whatsappNumber: parsed.whatsappNumber || "5511999999999",
+        whatsappMessage: parsed.whatsappMessage || "Olá, preciso de ajuda com o PromoGen."
+      };
+    }
+    // Default placeholders
+    return {
+      proPlanLink: "https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=placeholder-pro",
+      agencyPlanLink: "https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=placeholder-agency",
+      googleApiKey: "", 
+      whatsappNumber: "5511999999999",
+      whatsappMessage: "Olá, preciso de ajuda com o PromoGen."
+    };
+  },
+
+  saveSettings: (settings: SystemSettings) => {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  },
+
   // --- Admin Functions ---
   getAllUsers: (): User[] => {
     const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
@@ -225,12 +282,8 @@ export const storageService = {
   },
 
   updateUserPlan: (userId: string, plan: PlanType) => {
-    const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
-    const updatedUsers = users.map((u: any) => {
-      if (u.id === userId) return { ...u, plan };
-      return u;
-    });
-    localStorage.setItem(USERS_KEY, JSON.stringify(updatedUsers));
+    // Re-uses logic to ensure date calculation is consistent
+    storageService.upgradeToPro(userId, plan);
   },
 
   getDashboardStats: (): AdminStats => {
