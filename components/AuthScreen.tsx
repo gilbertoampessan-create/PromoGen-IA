@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Button } from './Button';
-import { Sparkles, ArrowLeft, Mail, Lock, User } from 'lucide-react';
+import { Sparkles, ArrowLeft, Mail, Lock, User, Shield, Crown, Briefcase, Coffee } from 'lucide-react';
 import { storageService } from '../services/storageService';
 
 interface AuthScreenProps {
@@ -35,6 +35,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, onBack }) => 
     } finally {
       setLoading(false);
     }
+  };
+
+  const autoFill = (email: string, pass: string) => {
+    setFormData({ ...formData, email, password: pass });
+    setError(null);
   };
 
   return (
@@ -115,6 +120,39 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, onBack }) => 
             {isLogin ? 'Entrar' : 'Criar Conta'}
           </Button>
         </form>
+        
+        {/* --- TEST CREDENTIALS (DEV ONLY) --- */}
+        {isLogin && (
+          <div className="mt-8 pt-6 border-t border-slate-100">
+             <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 text-center">Ambiente de Teste (Clique para Preencher)</p>
+             <div className="grid grid-cols-2 gap-2">
+                <button 
+                  onClick={() => autoFill('admin@promogen.com', 'admin123')}
+                  className="flex items-center gap-2 p-2 bg-slate-800 text-white rounded-lg text-xs font-medium hover:bg-slate-700 transition-colors"
+                >
+                  <Shield className="w-3 h-3" /> Admin
+                </button>
+                <button 
+                   onClick={() => autoFill('agency@promogen.com', '123456')}
+                   className="flex items-center gap-2 p-2 bg-purple-600 text-white rounded-lg text-xs font-medium hover:bg-purple-500 transition-colors"
+                >
+                  <Briefcase className="w-3 h-3" /> Agência
+                </button>
+                <button 
+                   onClick={() => autoFill('pro@promogen.com', '123456')}
+                   className="flex items-center gap-2 p-2 bg-brand-600 text-white rounded-lg text-xs font-medium hover:bg-brand-500 transition-colors"
+                >
+                  <Crown className="w-3 h-3" /> Pro
+                </button>
+                <button 
+                   onClick={() => autoFill('free@promogen.com', '123456')}
+                   className="flex items-center gap-2 p-2 bg-slate-100 text-slate-600 rounded-lg text-xs font-medium hover:bg-slate-200 transition-colors"
+                >
+                  <Coffee className="w-3 h-3" /> Grátis
+                </button>
+             </div>
+          </div>
+        )}
 
         <div className="mt-6 text-center pt-6 border-t border-slate-100">
           <p className="text-sm text-slate-600">
