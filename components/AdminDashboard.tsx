@@ -684,53 +684,69 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
              
              <form onSubmit={handleSaveSettings} className="p-6 space-y-6">
                 
-                {/* --- API STATUS SECTION (SECURE) --- */}
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 relative overflow-hidden">
-                    {/* Background Pattern */}
+                {/* --- API STATUS SECTION (SECURE & VISUAL) --- */}
+                <div className="bg-slate-50 p-5 rounded-xl border border-slate-200 relative overflow-hidden">
                     <div className="absolute top-0 right-0 p-4 opacity-5">
                         <Zap className="w-24 h-24" />
                     </div>
 
-                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
-                        <div>
-                            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                                <Zap className="w-4 h-4 text-brand-600 fill-brand-100" /> Status da IA (Gemini)
-                            </h3>
-                            <p className="text-xs text-slate-500 mt-1 max-w-sm">
-                                A chave deve ser configurada via Variáveis de Ambiente por segurança.
-                            </p>
-                        </div>
-                        <div className="text-right flex flex-col items-end">
-                            <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold border ${isApiKeyConfigured ? 'bg-green-100 text-green-700 border-green-200' : 'bg-red-100 text-red-700 border-red-200'}`}>
-                                {isApiKeyConfigured ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
-                                {isApiKeyConfigured ? 'Chave Configurada' : 'Chave Ausente'}
-                            </span>
-                        </div>
-                    </div>
-
-                    {!isApiKeyConfigured ? (
-                        <div className="mt-4 p-3 bg-red-50 border border-red-100 rounded-lg text-xs text-red-800">
-                            <strong>Ação Necessária:</strong> Adicione <code>API_KEY</code> no arquivo <code>.env</code> ou nas configurações da Vercel.
-                            <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="block mt-2 text-brand-600 hover:underline flex items-center gap-1">
-                                <Key className="w-3 h-3" /> Gerar Chave no Google AI Studio <ExternalLink className="w-3 h-3" />
+                    <div className="relative z-10">
+                        <div className="flex items-center justify-between mb-4">
+                            <div>
+                                <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                                    <Key className="w-4 h-4 text-brand-600" /> Integração IA (Gemini)
+                                </h3>
+                                <p className="text-xs text-slate-500 mt-1">
+                                    A chave da API deve ser configurada nas variáveis de ambiente.
+                                </p>
+                            </div>
+                            <a 
+                                href="https://aistudio.google.com/app/apikey" 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="text-xs bg-white border border-slate-200 text-brand-600 px-3 py-1.5 rounded-lg hover:bg-brand-50 font-medium flex items-center gap-1 transition-colors"
+                            >
+                                <ExternalLink className="w-3 h-3" /> Gerar Chave no Google AI Studio
                             </a>
                         </div>
-                    ) : (
-                         <div className="mt-4 flex items-center gap-3">
+
+                        {/* Visual "Input" (Read Only Status) */}
+                        <div className="bg-white border border-slate-300 rounded-lg flex items-center overflow-hidden mb-3">
+                            <div className="px-3 py-2 bg-slate-100 border-r border-slate-200 text-xs font-bold text-slate-500">API_KEY</div>
+                            <input 
+                                type="text" 
+                                disabled
+                                className="flex-1 px-3 py-2 text-sm text-slate-600 bg-transparent outline-none cursor-not-allowed font-mono"
+                                value={isApiKeyConfigured ? '••••••••••••••••••••••••••••••••' : ''}
+                                placeholder="Chave não configurada"
+                            />
+                            <div className="px-2">
+                                {isApiKeyConfigured ? <Check className="w-4 h-4 text-green-500" /> : <X className="w-4 h-4 text-red-500" />}
+                            </div>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-3">
+                             <div className="text-xs text-slate-400">
+                                {isApiKeyConfigured ? 'Status: Configurado via Ambiente (.env)' : 'Ação Necessária: Adicione API_KEY no arquivo .env'}
+                             </div>
                              <Button 
                                 type="button" 
                                 onClick={handleTestConnection}
-                                disabled={connectionStatus === 'testing'}
-                                className={`text-xs py-2 px-3 h-auto ${connectionStatus === 'success' ? 'bg-green-600 hover:bg-green-700' : connectionStatus === 'failed' ? 'bg-red-600 hover:bg-red-700' : 'bg-slate-800 hover:bg-slate-900'}`}
+                                disabled={connectionStatus === 'testing' || !isApiKeyConfigured}
+                                className={`text-xs py-2 px-4 h-auto ${connectionStatus === 'success' ? 'bg-green-600 hover:bg-green-700' : connectionStatus === 'failed' ? 'bg-red-600 hover:bg-red-700' : 'bg-slate-800 hover:bg-slate-900'}`}
                              >
                                  {connectionStatus === 'testing' && <RefreshCw className="w-3 h-3 mr-1 animate-spin" />}
                                  {connectionStatus === 'success' && <Check className="w-3 h-3 mr-1" />}
                                  {connectionStatus === 'failed' && <X className="w-3 h-3 mr-1" />}
                                  {connectionStatus === 'idle' ? 'Testar Conexão' : connectionStatus === 'testing' ? 'Verificando...' : connectionStatus === 'success' ? 'Conexão OK' : 'Falha na Conexão'}
                              </Button>
-                             {connectionStatus === 'success' && <span className="text-xs text-green-600 font-medium animate-in fade-in">Tudo pronto para gerar!</span>}
-                         </div>
-                    )}
+                        </div>
+                        {connectionStatus === 'success' && (
+                            <p className="text-[10px] text-green-600 font-bold mt-2 text-right animate-in fade-in">
+                                Sistema operacional e pronto para gerar imagens!
+                            </p>
+                        )}
+                    </div>
                 </div>
 
                 <hr className="border-slate-100" />
@@ -774,7 +790,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                    </h3>
                    <div className="space-y-4">
                      <div>
-                        <label className="block text-xs font-bold text-slate-500 mb-1">Plano Profissional</label>
+                        <label className="block text-xs font-bold text-slate-500 mb-1">Link do Checkout (Mercado Pago)</label>
                         <input 
                             type="url" 
                             required
@@ -783,6 +799,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                             value={settings.proPlanLink}
                             onChange={(e) => setSettings({...settings, proPlanLink: e.target.value})}
                         />
+                        <p className="text-[10px] text-slate-400 mt-1">Cole aqui o link gerado no painel do Mercado Pago para o plano anual.</p>
                      </div>
                    </div>
                 </div>
