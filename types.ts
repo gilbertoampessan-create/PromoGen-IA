@@ -2,9 +2,10 @@
 export interface OfferData {
   offerText: string;
   highlightText: string;
-  textColor: 'white' | 'black' | 'brand' | 'red' | 'yellow' | 'green' | 'purple' | 'pink' | 'orange' | 'teal' | 'navy';
+  textColor: 'white' | 'black' | 'brand' | 'red' | 'yellow' | 'green' | 'purple' | 'pink' | 'orange' | 'teal' | 'navy' | 'custom';
+  customColor?: string; // Hex code for extracted logo color
   font: 'modern' | 'classic' | 'handwritten';
-  fontSize: 'small' | 'medium' | 'large'; // Novo campo
+  fontSize: 'small' | 'medium' | 'large';
   layout: 'center' | 'left' | 'right';
   verticalAlignment: 'top' | 'center' | 'bottom';
   aspect: ImageAspect;
@@ -17,16 +18,9 @@ export interface CompanyInfo {
   name: string;
   phone: string;
   logo: string | null; // Base64
+  dominantColor?: string; // Deprecated in favor of palette, but kept for compatibility
+  brandPalette?: string[]; // Array of extracted hex colors
   showOnImage: boolean;
-}
-
-export interface Brand {
-  id: string;
-  userId: string;
-  internalName: string; // Nome para identificar no dropdown (ex: "Cliente Pizzaria")
-  companyName: string;
-  phone: string;
-  logo: string | null;
 }
 
 export interface BannerContent {
@@ -53,13 +47,40 @@ export type GenerationMode = 'generate' | 'remix' | 'upload';
 
 // --- Auth & Subscription Types ---
 
-export type PlanType = 'free' | 'pro' | 'agency';
+export type PlanType = 'free' | 'pro';
+
+export const BUSINESS_SEGMENTS = [
+  'Varejo / Loja de Roupas',
+  'Alimentação / Restaurante',
+  'Tecnologia / Eletrônicos',
+  'Saúde / Clínica',
+  'Beleza / Estética',
+  'Imobiliária / Corretor',
+  'Automotivo / Oficina',
+  'Educação / Cursos',
+  'Entretenimento / Eventos',
+  'Viagens / Turismo',
+  'Financeiro / Consultoria',
+  'Jurídico / Advocacia',
+  'Arte / Design',
+  'Esportes / Academia',
+  'Pet Shop / Veterinária',
+  'Casa e Decoração',
+  'Construção / Reformas',
+  'Marketing / Agência',
+  'Logística / Transporte',
+  'Outros'
+] as const;
+
+export type BusinessSegment = typeof BUSINESS_SEGMENTS[number];
 
 export interface User {
   id: string;
   email: string;
   name: string;
+  phone?: string; // New field
   plan: PlanType;
+  businessSegment: BusinessSegment;
   createdAt: string;
   isAdmin?: boolean;
   lifetimeGenerations?: number;
@@ -77,6 +98,40 @@ export interface AuthState {
   view: 'landing' | 'auth' | 'app' | 'admin';
 }
 
+export interface FinancialTransaction {
+  id: string;
+  userId?: string; // Optional for manual entries, required for subscriptions
+  userName?: string; // Snapshot of user name
+  type: 'income' | 'expense';
+  category: string; // Ex: Assinatura, Servidor, Marketing
+  description: string;
+  amount: number;
+  date: string;
+  status: 'paid' | 'pending' | 'rejected';
+  planType?: 'monthly' | 'annual';
+}
+
+export interface Campaign {
+  id: string;
+  name: string;
+  targetSegment: BusinessSegment | 'Todos';
+  targetPlan: PlanType | 'all'; // Novo filtro
+  status: 'active' | 'draft' | 'completed';
+  message: string;
+  createdAt: string;
+  reach: number; // Estimated users reached
+}
+
+export interface AppNotification {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  date: string;
+  read: boolean;
+  type: 'campaign' | 'system';
+}
+
 export interface AdminStats {
   totalUsers: number;
   totalPro: number;
@@ -84,12 +139,17 @@ export interface AdminStats {
   mrr: number;
   totalGenerations: number;
   estimatedCost: number;
+  cashFlow?: {
+    income: number;
+    expenses: number;
+    balance: number;
+  }
 }
 
 export interface SystemSettings {
   proPlanLink: string;
-  agencyPlanLink: string;
   googleApiKey: string;
   whatsappNumber: string;
-  whatsappMessage: string; // Mensagem padrão para a URA
+  whatsappMessage: string;
+  termsOfService: string;
 }

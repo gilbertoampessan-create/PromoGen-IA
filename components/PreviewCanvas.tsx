@@ -13,7 +13,7 @@ interface PreviewCanvasProps {
 }
 
 export const PreviewCanvas = forwardRef<HTMLDivElement, PreviewCanvasProps>(({ data, companyInfo, backgroundImage, content, isLoading, isPro }, ref) => {
-  const { offerText, textColor, layout, verticalAlignment, aspect, font, fontSize } = data;
+  const { offerText, textColor, layout, verticalAlignment, aspect, font, fontSize, customColor } = data;
 
   const getTextColorClasses = () => {
     switch (textColor) {
@@ -67,6 +67,12 @@ export const PreviewCanvas = forwardRef<HTMLDivElement, PreviewCanvasProps>(({ d
         sub: 'text-slate-700',
         pill: 'bg-slate-900 text-white'
       };
+      case 'custom': return {
+        // Special case: we will apply style inline
+        main: '',
+        sub: '',
+        pill: ''
+      };
       default: return {
         main: 'text-white',
         sub: 'text-white/90',
@@ -76,6 +82,11 @@ export const PreviewCanvas = forwardRef<HTMLDivElement, PreviewCanvasProps>(({ d
   };
 
   const colors = getTextColorClasses();
+
+  // Helper styles for custom colors
+  const mainStyle = textColor === 'custom' && customColor ? { color: customColor } : {};
+  const subStyle = textColor === 'custom' && customColor ? { color: customColor, opacity: 0.9 } : {};
+  const pillStyle = textColor === 'custom' && customColor ? { backgroundColor: customColor, color: '#fff' } : {};
 
   const getLayoutClasses = () => {
     switch (layout) {
@@ -208,20 +219,23 @@ export const PreviewCanvas = forwardRef<HTMLDivElement, PreviewCanvasProps>(({ d
               {/* Headline */}
               <div 
                 className={`font-extrabold leading-tight drop-shadow-xl ${colors.main} ${getFontSizeClasses('headline')}`} 
-                style={{ fontFamily: getFontFamily() }}
+                style={{ fontFamily: getFontFamily(), ...mainStyle }}
               >
                 {content.headline}
               </div>
 
               {/* Subtext - Note whitespace-pre-line for vertical lists */}
-              <div className={`font-medium leading-relaxed max-w-[90%] drop-shadow-md whitespace-pre-line ${colors.sub} ${getFontSizeClasses('subtext')}`}>
+              <div 
+                 className={`font-medium leading-relaxed max-w-[90%] drop-shadow-md whitespace-pre-line ${colors.sub} ${getFontSizeClasses('subtext')}`}
+                 style={subStyle}
+              >
                 {content.subtext}
               </div>
 
               {/* Highlight/Price Pill */}
               <div 
-                className={`mt-4 rounded-full shadow-xl transform scale-105 tracking-wide ${colors.pill} ${getFontSizeClasses('highlight')}`}
-                style={{ fontFamily: getFontFamily(), fontWeight: 700 }}
+                className={`mt-4 rounded-full shadow-xl tracking-wide ${colors.pill} ${getFontSizeClasses('highlight')}`}
+                style={{ fontFamily: getFontFamily(), fontWeight: 700, ...pillStyle }}
               >
                 {content.highlight}
               </div>
@@ -230,7 +244,7 @@ export const PreviewCanvas = forwardRef<HTMLDivElement, PreviewCanvasProps>(({ d
             // Fallback / Initial State (Raw Text)
             <div 
               className={`font-bold whitespace-pre-wrap leading-tight drop-shadow-lg ${colors.main} ${getFontSizeClasses('headline')}`}
-              style={{ fontFamily: getFontFamily() }}
+              style={{ fontFamily: getFontFamily(), ...mainStyle }}
             >
               {offerText || "Digite sua oferta..."}
             </div>

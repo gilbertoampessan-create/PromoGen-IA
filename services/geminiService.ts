@@ -42,8 +42,9 @@ export const generateBackgroundFromText = async (
   referenceImage: string | null = null,
   skipImageGeneration: boolean = false,
   isPro: boolean = false,
-  offerStyle: string = 'custom', // New param
-  isolateProduct: boolean = false // New param
+  offerStyle: string = 'custom',
+  isolateProduct: boolean = false,
+  brandColor: string | undefined = undefined // New param
 ): Promise<GenerationResult> => {
   
   // 1. Determine Style Modifiers
@@ -71,6 +72,11 @@ export const generateBackgroundFromText = async (
   // 2. Isolate Product Modifier
   const isolationInstruction = isolateProduct 
     ? "SOLID PLAIN BACKGROUND, product photography studio isolation, neutral background color, no distractions in background, clean cut"
+    : "";
+
+  // Brand Color Modifier
+  const brandInstruction = brandColor 
+    ? `IMPORTANT: The brand color is ${brandColor}. Try to incorporate this color subtly in the background, lighting, or accents.`
     : "";
 
   // Quality modifiers based on plan
@@ -107,10 +113,11 @@ export const generateBackgroundFromText = async (
     1. Crie um prompt em INGLÊS.
     2. INCORPORE O ESTILO: ${styleKeywords}
     3. ${isolationInstruction}
-    4. ${visualStyle}
-    5. ${qualityInstruction}
-    6. ENQUADRAMENTO: Use "Wide Shot", "Zoom Out", "Uncropped".
-    7. ESPAÇO NEGATIVO: Obrigatório deixar espaço para texto.
+    4. ${brandInstruction}
+    5. ${visualStyle}
+    6. ${qualityInstruction}
+    7. ENQUADRAMENTO: Use "Wide Shot", "Zoom Out", "Uncropped".
+    8. ESPAÇO NEGATIVO: Obrigatório deixar espaço para texto.
     
     RETORNE APENAS JSON NESTE FORMATO:
     {
@@ -175,7 +182,7 @@ export const generateBackgroundFromText = async (
         : "wide shot, uncropped, zoom out, standard quality";
         
       // Combine custom prompt + style keywords + isolation instructions
-      const imagePrompt = `${resultJson.imagePrompt}. ${styleKeywords}. ${isolationInstruction}`;
+      const imagePrompt = `${resultJson.imagePrompt}. ${styleKeywords}. ${isolationInstruction}. ${brandInstruction}`;
 
       // Function to generate a single image (wrapped for Promise.all)
       const generateSingleImage = async (index: number): Promise<string | null> => {
@@ -253,4 +260,47 @@ export const generateBackgroundFromText = async (
       }
     };
   }
+};
+
+export const regenerateCopy = async (offerText: string, offerStyle: string): Promise<BannerContent> => {
+    const ai = getGeminiClient();
+    
+    const prompt = `
+      Você é um especialista em Copywriting para Varejo.
+      Reescreva o texto para esta oferta: "${offerText}"
+      Estilo: ${offerStyle}
+      
+      Regras:
+      1. Headline curta (max 4 palavras) e impactante.
+      2. Subtexto persuasivo e direto.
+      3. Destaque (Highlight) deve ser o preço ou uma chamada de ação curtíssima.
+      
+      Responda APENAS JSON:
+      {
+        "headline": "...",
+        "subtext": "...",
+        "highlight": "..."
+      }
+    `;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: prompt,
+      config: { responseMimeType: 'application/json' }
+    });
+
+    try {
+        const json = JSON.parse(cleanText(response.text || '{}'));
+        return {
+            headline: json.headline || "Oferta",
+            subtext: json.subtext || offerText,
+            highlight: json.highlight || "Confira"
+        };
+    } catch (e) {
+        return {
+            headline: "Nova Oferta",
+            subtext: offerText,
+            highlight: "Confira"
+        };
+    }
 };

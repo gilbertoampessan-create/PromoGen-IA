@@ -1,8 +1,8 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Sparkles, Download, LayoutTemplate, Palette, Wand2, ImagePlus, Type, AlignLeft, AlignCenter, AlignRight, Square, Smartphone, RectangleHorizontal, Upload, MessageSquarePlus, ImageIcon, ArrowUpToLine, ArrowDownToLine, FoldVertical, RefreshCw, Building2, Phone, Trash2, Crown, LogOut, User as UserIcon, CheckCircle2, PencilLine, Diamond, Utensils, Cpu, Leaf, Eraser, Briefcase, Plus, Save, MessageCircle, ALargeSmall, ChevronDown, ChevronUp, Calendar } from 'lucide-react';
-import { OfferData, GeneratedImageState, ImageAspect, GenerationMode, CompanyInfo, AuthState, BannerContent, Brand, PlanType } from './types';
-import { generateBackgroundFromText } from './services/geminiService';
+import { Sparkles, Download, LayoutTemplate, Palette, Wand2, ImagePlus, Type, AlignLeft, AlignCenter, AlignRight, Square, Smartphone, RectangleHorizontal, Upload, MessageSquarePlus, ImageIcon, ArrowUpToLine, ArrowDownToLine, FoldVertical, RefreshCw, Building2, Trash2, Crown, User as UserIcon, CheckCircle2, PencilLine, Diamond, Utensils, Cpu, Leaf, Eraser, MessageCircle, ALargeSmall, LogOut, Pipette, RotateCcw, Lock, Bell } from 'lucide-react';
+import { OfferData, GeneratedImageState, ImageAspect, GenerationMode, CompanyInfo, AuthState, BannerContent, PlanType, AppNotification } from './types';
+import { generateBackgroundFromText, regenerateCopy } from './services/geminiService';
 import { storageService } from './services/storageService';
 import { PreviewCanvas } from './components/PreviewCanvas';
 import { Button } from './components/Button';
@@ -12,6 +12,94 @@ import { SubscriptionModal } from './components/SubscriptionModal';
 import { AdminDashboard } from './components/AdminDashboard'; 
 import { UserProfileModal } from './components/UserProfileModal';
 import html2canvas from 'html2canvas';
+
+// Helper: Calculate color distance
+const getColorDistance = (rgb1: number[], rgb2: number[]) => {
+  return Math.sqrt(
+    Math.pow(rgb1[0] - rgb2[0], 2) +
+    Math.pow(rgb1[1] - rgb2[1], 2) +
+    Math.pow(rgb1[2] - rgb2[2], 2)
+  );
+};
+
+// Helper: Convert RGB string key to hex
+const rgbToHex = (r: number, g: number, b: number) => {
+  return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+};
+
+// Helper to extract a palette of dominant colors
+const extractColorPalette = (imageSrc: string): Promise<string[]> => {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "Anonymous";
+    img.src = imageSrc;
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return resolve(['#000000']);
+      
+      // Resize for performance
+      canvas.width = 150;
+      canvas.height = 150;
+      ctx.drawImage(img, 0, 0, 150, 150);
+      
+      const imageData = ctx.getImageData(0, 0, 150, 150).data;
+      const colorCounts: Record<string, number> = {};
+      
+      // 1. Quantize and Count
+      for (let i = 0; i < imageData.length; i += 4) {
+        const r = imageData[i];
+        const g = imageData[i + 1];
+        const b = imageData[i + 2];
+        const a = imageData[i + 3];
+
+        if (a < 128) continue; // Skip transparent
+        
+        // Skip pure white/black unless requested (optional tweak)
+        if (r > 250 && g > 250 && b > 250) continue; 
+        if (r < 10 && g < 10 && b < 10) continue;
+
+        // Round to nearest 20 to group similar colors
+        const quantization = 20;
+        const rr = Math.round(r / quantization) * quantization;
+        const gg = Math.round(g / quantization) * quantization;
+        const bb = Math.round(b / quantization) * quantization;
+
+        const key = `${rr},${gg},${bb}`;
+        colorCounts[key] = (colorCounts[key] || 0) + 1;
+      }
+
+      // 2. Sort by frequency
+      const sortedColors = Object.entries(colorCounts)
+        .sort(([, countA], [, countB]) => countB - countA)
+        .map(([key]) => key.split(',').map(Number));
+
+      // 3. Filter Distinct Colors
+      const distinctColors: number[][] = [];
+      const threshold = 60; // Distance threshold for distinctness
+
+      for (const color of sortedColors) {
+        if (distinctColors.length >= 5) break; // Max 5 colors
+
+        let isDistinct = true;
+        for (const existing of distinctColors) {
+          if (getColorDistance(color, existing) < threshold) {
+            isDistinct = false;
+            break;
+          }
+        }
+
+        if (isDistinct) {
+          distinctColors.push(color);
+        }
+      }
+
+      const hexPalette = distinctColors.map(([r, g, b]) => rgbToHex(r, g, b));
+      resolve(hexPalette.length > 0 ? hexPalette : ['#000000']);
+    };
+    img.onerror = () => resolve(['#000000']);
+  });
+};
 
 const App: React.FC = () => {
   // --- Auth & View State ---
@@ -24,7 +112,11 @@ const App: React.FC = () => {
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [isQuotaTriggered, setIsQuotaTriggered] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
-  const [targetSubscriptionPlan, setTargetSubscriptionPlan] = useState<PlanType | undefined>(undefined);
+  
+  // Notification State
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const unreadCount = notifications.filter(n => !n.read).length;
 
   // --- App Logic ---
   useEffect(() => {
@@ -38,6 +130,8 @@ const App: React.FC = () => {
         isAuthenticated: true,
         view: currentUser.isAdmin ? 'admin' : 'app'
       });
+      // Load Notifications
+      setNotifications(storageService.getUserNotifications(currentUser.id));
     }
   }, []);
 
@@ -49,6 +143,7 @@ const App: React.FC = () => {
         isAuthenticated: true,
         view: currentUser.isAdmin ? 'admin' : 'app'
       });
+      setNotifications(storageService.getUserNotifications(currentUser.id));
     }
   };
 
@@ -74,9 +169,8 @@ const App: React.FC = () => {
     return true;
   };
 
-  const openSubscriptionManagement = (plan?: PlanType) => {
+  const openSubscriptionManagement = () => {
     setIsQuotaTriggered(false);
-    setTargetSubscriptionPlan(plan);
     setShowSubscriptionModal(true);
   };
 
@@ -86,6 +180,13 @@ const App: React.FC = () => {
     const message = settings.whatsappMessage || 'Olá, preciso de ajuda com o PromoGen.';
     const url = `https://wa.me/${number}?text=${encodeURIComponent(message)}`;
     window.open(url, '_blank');
+  };
+
+  const handleMarkNotificationRead = (id: string) => {
+      storageService.markNotificationAsRead(id);
+      if(authState.user) {
+          setNotifications(storageService.getUserNotifications(authState.user.id));
+      }
   };
 
   // --- Main App State ---
@@ -100,20 +201,17 @@ const App: React.FC = () => {
     aspect: ImageAspect.SQUARE,
     customImagePrompt: '',
     offerStyle: 'custom',
-    isolateProduct: false
+    isolateProduct: false,
+    customColor: undefined
   });
 
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo>({
     name: '',
     phone: '',
     logo: null,
+    brandPalette: [],
     showOnImage: true
   });
-
-  // Agency Mode States
-  const [brands, setBrands] = useState<Brand[]>([]);
-  const [brandInternalName, setBrandInternalName] = useState('');
-  const [selectedBrandId, setSelectedBrandId] = useState('');
 
   const [mode, setMode] = useState<GenerationMode>('generate');
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
@@ -127,32 +225,26 @@ const App: React.FC = () => {
     error: null
   });
 
+  const [isRegeneratingText, setIsRegeneratingText] = useState(false);
+
   const previewRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const logoInputRef = useRef<HTMLInputElement>(null);
-  const brandSectionRef = useRef<HTMLDivElement>(null); // Ref for brand section scrolling
 
-  // Load Saved Company Info (Fallback) or Load Brands (Agency)
+  // Load Saved Company Info
   useEffect(() => {
-    if (authState.user?.plan === 'agency') {
-        const userBrands = storageService.getBrands(authState.user.id);
-        setBrands(userBrands);
-    } else {
-        const savedCompany = localStorage.getItem('promogen_company_info');
-        if (savedCompany) {
-            try {
-                setCompanyInfo(JSON.parse(savedCompany));
-            } catch (e) {
-                console.error("Failed to load company info", e);
-            }
+    const savedCompany = localStorage.getItem('promogen_company_info');
+    if (savedCompany) {
+        try {
+            setCompanyInfo(JSON.parse(savedCompany));
+        } catch (e) {
+            console.error("Failed to load company info", e);
         }
     }
   }, [authState.user]);
 
   useEffect(() => {
-    if (authState.user?.plan !== 'agency') {
-         localStorage.setItem('promogen_company_info', JSON.stringify(companyInfo));
-    }
+     localStorage.setItem('promogen_company_info', JSON.stringify(companyInfo));
   }, [companyInfo, authState.user]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -187,67 +279,41 @@ const App: React.FC = () => {
     const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setCompanyInfo(prev => ({ ...prev, logo: reader.result as string }));
+      reader.onloadend = async () => {
+        const result = reader.result as string;
+        // Extract palette when logo is uploaded
+        const palette = await extractColorPalette(result);
+        
+        setCompanyInfo(prev => ({ 
+           ...prev, 
+           logo: result,
+           brandPalette: palette
+        }));
+        
+        // Auto-set text color to the most dominant color (first in palette)
+        if (palette.length > 0) {
+            setOfferData(prev => ({
+               ...prev,
+               textColor: 'custom',
+               customColor: palette[0]
+            }));
+        }
       };
       reader.readAsDataURL(file);
     }
   };
 
   const removeLogo = () => {
-    setCompanyInfo(prev => ({ ...prev, logo: null }));
+    setCompanyInfo(prev => ({ ...prev, logo: null, brandPalette: [] }));
     if (logoInputRef.current) logoInputRef.current.value = '';
   };
 
-  // --- Agency: Brand Management ---
-  const saveBrand = () => {
-      if (!authState.user) return;
-      if (!brandInternalName) {
-          alert("Dê um nome interno para identificar esta marca (Ex: Cliente Pizzaria)");
-          return;
-      }
-      
-      const newBrand = storageService.saveBrand(authState.user.id, {
-          internalName: brandInternalName,
-          companyName: companyInfo.name,
-          phone: companyInfo.phone,
-          logo: companyInfo.logo
-      });
-      
-      setBrands(prev => [...prev, newBrand]);
-      setBrandInternalName('');
-      setSelectedBrandId(newBrand.id);
-      alert("Marca salva com sucesso!");
-  };
-
-  const deleteBrand = () => {
-      if (!selectedBrandId) return;
-      if (confirm('Excluir esta marca salva?')) {
-          storageService.deleteBrand(selectedBrandId);
-          setBrands(prev => prev.filter(b => b.id !== selectedBrandId));
-          setSelectedBrandId('');
-          setCompanyInfo({ name: '', phone: '', logo: null, showOnImage: true }); // Reset fields
-      }
-  };
-
-  const handleBrandSelection = (e: React.ChangeEvent<HTMLSelectElement>) => {
-      const brandId = e.target.value;
-      setSelectedBrandId(brandId);
-      
-      if (brandId) {
-          const brand = brands.find(b => b.id === brandId);
-          if (brand) {
-              setCompanyInfo(prev => ({
-                  ...prev,
-                  name: brand.companyName,
-                  phone: brand.phone,
-                  logo: brand.logo
-              }));
-          }
-      } else {
-           // Reset to empty if "Nova Marca" selected
-           setCompanyInfo(prev => ({ ...prev, name: '', phone: '', logo: null }));
-      }
+  const applyBrandColor = (color: string) => {
+    setOfferData(prev => ({
+        ...prev,
+        textColor: 'custom',
+        customColor: color
+    }));
   };
 
   // --- Style Selection Logic ---
@@ -295,8 +361,14 @@ const App: React.FC = () => {
     try {
       const skipImageGeneration = mode === 'upload';
       const referenceImage = mode === 'remix' ? uploadedImage : null;
-      const isPro = authState.user.plan === 'pro' || authState.user.plan === 'agency';
+      const isPro = authState.user.plan === 'pro';
       
+      // Determine which color to send to AI
+      // If user selected a custom color, use that. Otherwise use the first in palette.
+      const colorToUse = offerData.textColor === 'custom' && offerData.customColor 
+            ? offerData.customColor 
+            : (companyInfo.brandPalette && companyInfo.brandPalette.length > 0 ? companyInfo.brandPalette[0] : undefined);
+
       const result = await generateBackgroundFromText(
         offerData.offerText, 
         offerData.highlightText,
@@ -306,7 +378,8 @@ const App: React.FC = () => {
         skipImageGeneration,
         isPro,
         offerData.offerStyle,
-        offerData.isolateProduct
+        offerData.isolateProduct,
+        colorToUse // Pass selected brand color to AI
       );
       
       // Increment Usage Count upon success
@@ -330,6 +403,19 @@ const App: React.FC = () => {
         content: null,
         error: 'Falha ao processar. Tente novamente.'
       });
+    }
+  };
+
+  const handleRegenerateText = async () => {
+    if (!offerData.offerText) return;
+    setIsRegeneratingText(true);
+    try {
+        const newContent = await regenerateCopy(offerData.offerText, offerData.offerStyle || 'custom');
+        setImageState(prev => ({ ...prev, content: newContent }));
+    } catch (e) {
+        console.error("Error regenerating text", e);
+    } finally {
+        setIsRegeneratingText(false);
     }
   };
 
@@ -384,8 +470,7 @@ const App: React.FC = () => {
     return <AdminDashboard onLogout={handleLogout} />;
   }
 
-  const isPro = authState.user?.plan === 'pro' || authState.user?.plan === 'agency';
-  const isAgency = authState.user?.plan === 'agency';
+  const isPro = authState.user?.plan === 'pro';
   const quota = authState.user ? storageService.checkQuota(authState.user.id) : { allowed: false, remaining: 0, used: 0 };
   const currentDisplayImage = imageState.images.length > 0 ? imageState.images[imageState.selectedIndex] : (mode === 'upload' ? uploadedImage : null);
 
@@ -399,11 +484,9 @@ const App: React.FC = () => {
                 setShowSubscriptionModal(false);
                 const updatedUser = storageService.getCurrentUser();
                 setAuthState(prev => ({ ...prev, user: updatedUser }));
-                setTargetSubscriptionPlan(undefined);
             }} 
             userId={authState.user.id}
             isUpgradeTriggered={isQuotaTriggered}
-            initialPlan={targetSubscriptionPlan}
         />
       )}
       
@@ -415,9 +498,11 @@ const App: React.FC = () => {
             user={authState.user}
             onLogout={handleLogout}
             onPlanChange={(newPlan) => {
-                // When user selects a new plan in profile, close profile and open payment modal
                 setShowProfileModal(false);
-                openSubscriptionManagement(newPlan);
+                openSubscriptionManagement();
+            }}
+            onProfileUpdate={(updatedUser) => {
+                setAuthState(prev => ({ ...prev, user: updatedUser }));
             }}
         />
       )}
@@ -432,178 +517,243 @@ const App: React.FC = () => {
                 <Sparkles className="text-brand-600 fill-brand-100 w-5 h-5" />
                 PromoGen
              </h1>
-             {isPro && <div className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${isAgency ? 'bg-purple-100 text-purple-700' : 'bg-brand-100 text-brand-700'}`}>
-                {isAgency ? <Briefcase className="w-3 h-3 fill-current" /> : <Crown className="w-3 h-3 fill-current" />}
-                {isAgency ? 'AGÊNCIA' : 'PRO'}
+             {isPro && <div className="text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 bg-brand-100 text-brand-700">
+                <Crown className="w-3 h-3 fill-current" />
+                PRO
              </div>}
           </div>
           
-          {/* User Profile Trigger */}
-          <div 
-            className="flex items-center justify-between bg-slate-50 p-3 rounded-xl border border-slate-100 cursor-pointer hover:bg-slate-100 transition-colors group"
-            onClick={() => setShowProfileModal(true)}
-            title="Gerenciar Conta"
-          >
-            <div className="flex items-center gap-2 overflow-hidden">
-                <div className="w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center text-slate-500 group-hover:bg-brand-100 group-hover:text-brand-600 transition-colors">
-                    <UserIcon className="w-4 h-4" />
-                </div>
-                <div className="flex flex-col">
-                    <span className="text-xs font-bold text-slate-700 truncate max-w-[100px]">{authState.user?.name}</span>
-                    <span className="text-[10px] text-slate-400 truncate">{isPro ? 'Ilimitado' : `${quota.used}/2 hoje`}</span>
+          {/* User Profile & Notifications */}
+          <div className="flex items-center gap-2">
+            <div 
+                className="flex-1 flex items-center justify-between bg-slate-50 p-3 rounded-xl border border-slate-100 cursor-pointer hover:bg-slate-100 transition-colors group"
+                onClick={() => setShowProfileModal(true)}
+                title="Gerenciar Conta"
+            >
+                <div className="flex items-center gap-2 overflow-hidden">
+                    <div className="w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center text-slate-500 group-hover:bg-brand-100 group-hover:text-brand-600 transition-colors">
+                        <UserIcon className="w-4 h-4" />
+                    </div>
+                    <div className="flex flex-col">
+                        <span className="text-xs font-bold text-slate-700 truncate max-w-[100px]">{authState.user?.name}</span>
+                        <span className="text-[10px] text-slate-400 truncate">{isPro ? 'Ilimitado' : `${quota.used}/2 hoje`}</span>
+                    </div>
                 </div>
             </div>
-            <Crown className="w-4 h-4 text-slate-300 group-hover:text-brand-500" />
+            
+            {/* Notification Bell */}
+             <div className="relative">
+                <button 
+                    onClick={() => setShowNotifications(!showNotifications)}
+                    className={`p-3 rounded-xl border transition-colors ${showNotifications ? 'bg-brand-100 text-brand-600 border-brand-200' : 'bg-slate-50 text-slate-500 border-slate-100 hover:bg-slate-100'}`}
+                >
+                    <Bell className="w-5 h-5" />
+                    {unreadCount > 0 && (
+                        <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
+                    )}
+                </button>
+                
+                {showNotifications && (
+                    <div className="absolute top-full right-0 mt-2 w-72 bg-white rounded-xl shadow-2xl border border-slate-200 z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                        <div className="p-3 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                            <h3 className="text-xs font-bold text-slate-700">Notificações</h3>
+                            {unreadCount > 0 && <span className="text-[10px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-bold">{unreadCount} novas</span>}
+                        </div>
+                        <div className="max-h-64 overflow-y-auto">
+                            {notifications.length === 0 ? (
+                                <div className="p-8 text-center text-slate-400 text-xs">
+                                    Nenhuma notificação.
+                                </div>
+                            ) : (
+                                notifications.map(n => (
+                                    <div 
+                                        key={n.id} 
+                                        className={`p-3 border-b border-slate-50 cursor-pointer hover:bg-slate-50 transition-colors ${!n.read ? 'bg-blue-50/50' : ''}`}
+                                        onClick={() => handleMarkNotificationRead(n.id)}
+                                    >
+                                        <div className="flex items-start gap-2">
+                                            <div className={`mt-0.5 w-2 h-2 rounded-full flex-shrink-0 ${!n.read ? 'bg-brand-500' : 'bg-slate-300'}`}></div>
+                                            <div>
+                                                <h4 className={`text-xs ${!n.read ? 'font-bold text-slate-800' : 'font-medium text-slate-600'}`}>{n.title}</h4>
+                                                <p className="text-xs text-slate-500 mt-1">{n.message}</p>
+                                                <p className="text-[10px] text-slate-400 mt-2">{new Date(n.date).toLocaleDateString()}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+                )}
+             </div>
+
+            {/* Logout Button */}
+            <button 
+                onClick={handleLogout}
+                className="p-3 bg-red-50 text-red-500 rounded-xl border border-red-100 hover:bg-red-100 hover:text-red-700 transition-colors"
+                title="Sair"
+            >
+                <LogOut className="w-5 h-5" />
+            </button>
           </div>
 
           {!isPro && (
-             <button onClick={() => openSubscriptionManagement('pro')} className="w-full mt-3 py-2 bg-gradient-to-r from-slate-900 to-slate-800 text-white text-xs font-bold rounded-lg shadow-md hover:opacity-90 transition-opacity flex items-center justify-center gap-2">
+             <button onClick={() => openSubscriptionManagement()} className="w-full mt-3 py-2 bg-gradient-to-r from-slate-900 to-slate-800 text-white text-xs font-bold rounded-lg shadow-md hover:opacity-90 transition-opacity flex items-center justify-center gap-2">
                  <Crown className="w-3 h-3 text-yellow-400 fill-yellow-400" />
                  Seja PRO - R$ 97/ano
              </button>
           )}
-
-           {isAgency && (
-                <button 
-                    onClick={() => brandSectionRef.current?.scrollIntoView({ behavior: 'smooth' })} 
-                    className="w-full mt-2 py-1.5 bg-purple-50 text-purple-700 text-xs font-medium rounded-lg border border-purple-100 hover:bg-purple-100 transition-colors flex items-center justify-center gap-2"
-                >
-                    <Briefcase className="w-3 h-3" /> Clientes Salvos
-                </button>
-            )}
         </div>
 
         <div className="space-y-6 flex-1">
           
-          {/* Company Identity Section */}
-          <div ref={brandSectionRef} className="space-y-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
-            <div className="flex items-center justify-between">
-              <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1">
-                <Building2 className="w-3 h-3" /> Identidade da Marca
-              </h3>
-              <input 
-                type="checkbox" 
-                checked={companyInfo.showOnImage} 
-                onChange={(e) => setCompanyInfo(prev => ({...prev, showOnImage: e.target.checked}))}
-                className="w-3 h-3 accent-brand-600 cursor-pointer" 
-              />
-            </div>
+          {/* Company Identity Section - ONLY FOR PRO */}
+          {isPro ? (
+            <div className="space-y-4 bg-slate-50 p-4 rounded-xl border border-slate-100">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                  <Building2 className="w-3 h-3" /> Identidade da Marca
+                </h3>
+                <input 
+                  type="checkbox" 
+                  checked={companyInfo.showOnImage} 
+                  onChange={(e) => setCompanyInfo(prev => ({...prev, showOnImage: e.target.checked}))}
+                  className="w-3 h-3 accent-brand-600 cursor-pointer" 
+                />
+              </div>
 
-            {/* AGENCY: Multi-Brand Manager */}
-            {isAgency && (
-                <div className="mb-4 p-3 bg-purple-50 rounded-lg border border-purple-100">
-                    <label className="block text-[10px] font-bold text-purple-700 mb-1 flex items-center gap-1"><Briefcase className="w-3 h-3"/> Gerenciar Clientes</label>
-                    <select 
-                        value={selectedBrandId} 
-                        onChange={handleBrandSelection}
-                        className="w-full text-xs p-1.5 border border-purple-200 rounded-md bg-white focus:outline-none focus:ring-1 focus:ring-purple-500 mb-2"
-                    >
-                        <option value="">-- Nova Marca / Limpar --</option>
-                        {brands.map(b => (
-                            <option key={b.id} value={b.id}>{b.internalName}</option>
-                        ))}
-                    </select>
-                    
-                    {!selectedBrandId && (
-                        <div className="flex gap-1">
-                            <input 
-                                type="text" 
-                                placeholder="Nome interno (ex: Pizzaria X)" 
-                                className="flex-1 text-xs px-2 py-1 border border-slate-300 rounded-md focus:outline-none"
-                                value={brandInternalName}
-                                onChange={(e) => setBrandInternalName(e.target.value)}
-                            />
-                            <button onClick={saveBrand} className="bg-purple-600 text-white p-1 rounded-md hover:bg-purple-700" title="Salvar Nova Marca"><Save className="w-4 h-4" /></button>
-                        </div>
-                    )}
-                    
-                    {selectedBrandId && (
-                         <button onClick={deleteBrand} className="w-full text-xs text-red-500 hover:text-red-700 flex items-center justify-center gap-1 mt-1 bg-red-50 py-1 rounded">
-                             <Trash2 className="w-3 h-3" /> Excluir Cliente Selecionado
-                         </button>
-                    )}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                    <label className="block text-[10px] font-bold text-slate-600 mb-1">Nome da Loja</label>
+                    <input type="text" name="name" value={companyInfo.name} onChange={handleCompanyChange} className="w-full px-2 py-1.5 border border-slate-300 rounded-md text-xs focus:ring-1 focus:ring-brand-500 outline-none" placeholder="Sua Loja" />
                 </div>
-            )}
-
-            <div className="grid grid-cols-2 gap-2">
-               <div>
-                  <label className="block text-[10px] font-bold text-slate-600 mb-1">Nome da Loja</label>
-                  <input type="text" name="name" value={companyInfo.name} onChange={handleCompanyChange} className="w-full px-2 py-1.5 border border-slate-300 rounded-md text-xs focus:ring-1 focus:ring-brand-500 outline-none" placeholder="Sua Loja" />
-               </div>
-               <div>
-                  <label className="block text-[10px] font-bold text-slate-600 mb-1">Telefone</label>
-                  <input type="text" name="phone" value={companyInfo.phone} onChange={handleCompanyChange} className="w-full px-2 py-1.5 border border-slate-300 rounded-md text-xs focus:ring-1 focus:ring-brand-500 outline-none" placeholder="(00) 0000-0000" />
-               </div>
+                <div>
+                    <label className="block text-[10px] font-bold text-slate-600 mb-1">Telefone</label>
+                    <input type="text" name="phone" value={companyInfo.phone} onChange={handleCompanyChange} className="w-full px-2 py-1.5 border border-slate-300 rounded-md text-xs focus:ring-1 focus:ring-brand-500 outline-none" placeholder="(00) 0000-0000" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-[10px] font-bold text-slate-600 mb-1">Logo (Miniatura)</label>
+                <div className="flex items-center gap-2">
+                    <div className="relative w-10 h-10 flex-shrink-0 bg-white border border-slate-200 rounded-lg flex items-center justify-center overflow-hidden">
+                      {companyInfo.logo ? <img src={companyInfo.logo} alt="Logo" className="w-full h-full object-contain p-0.5" /> : <ImageIcon className="w-4 h-4 text-slate-300" />}
+                    </div>
+                    <input type="file" ref={logoInputRef} onChange={handleLogoUpload} accept="image/*" className="hidden" />
+                    <button onClick={() => logoInputRef.current?.click()} className="text-xs bg-white border border-slate-300 px-3 py-1.5 rounded-md hover:bg-slate-50 text-slate-600">{companyInfo.logo ? 'Trocar' : 'Enviar Logo'}</button>
+                    {companyInfo.logo && <button onClick={removeLogo} className="text-slate-400 hover:text-red-500 p-1"><Trash2 className="w-4 h-4" /></button>}
+                </div>
+                
+                {/* Brand Color Ruler (Palette) */}
+                {companyInfo.brandPalette && companyInfo.brandPalette.length > 0 && (
+                    <div className="mt-3 bg-slate-100 p-2 rounded-lg border border-slate-200">
+                      <label className="text-[10px] font-bold text-slate-500 mb-2 block flex items-center gap-1">
+                          <Pipette className="w-3 h-3" /> Cores da Marca (Clique)
+                      </label>
+                      <div className="flex gap-2 flex-wrap">
+                          {companyInfo.brandPalette.map((color, idx) => (
+                            <button
+                                key={`${color}-${idx}`}
+                                onClick={() => applyBrandColor(color)}
+                                className={`w-6 h-6 rounded-full border border-slate-300 shadow-sm transition-transform hover:scale-110 relative group ${offerData.customColor === color && offerData.textColor === 'custom' ? 'ring-2 ring-brand-500 ring-offset-1' : ''}`}
+                                style={{ backgroundColor: color }}
+                                title={`Usar cor: ${color}`}
+                            >
+                                {offerData.customColor === color && offerData.textColor === 'custom' && (
+                                  <div className="absolute inset-0 flex items-center justify-center">
+                                      <div className="w-1.5 h-1.5 bg-white rounded-full shadow-sm"></div>
+                                  </div>
+                                )}
+                            </button>
+                          ))}
+                      </div>
+                    </div>
+                )}
+              </div>
             </div>
-            <div>
-               <label className="block text-[10px] font-bold text-slate-600 mb-1">Logo (Miniatura)</label>
-               <div className="flex items-center gap-2">
-                  <div className="relative w-10 h-10 flex-shrink-0 bg-white border border-slate-200 rounded-lg flex items-center justify-center overflow-hidden">
-                     {companyInfo.logo ? <img src={companyInfo.logo} alt="Logo" className="w-full h-full object-contain p-0.5" /> : <ImageIcon className="w-4 h-4 text-slate-300" />}
-                  </div>
-                  <input type="file" ref={logoInputRef} onChange={handleLogoUpload} accept="image/*" className="hidden" />
-                  <button onClick={() => logoInputRef.current?.click()} className="text-xs bg-white border border-slate-300 px-3 py-1.5 rounded-md hover:bg-slate-50 text-slate-600">{companyInfo.logo ? 'Trocar' : 'Enviar Logo'}</button>
-                  {companyInfo.logo && <button onClick={removeLogo} className="text-slate-400 hover:text-red-500 p-1"><Trash2 className="w-4 h-4" /></button>}
-               </div>
+          ) : (
+            // LOCKED STATE FOR FREE USERS
+            <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col items-center justify-center text-center opacity-80">
+                 <div className="w-10 h-10 bg-slate-200 rounded-full flex items-center justify-center mb-2">
+                     <Lock className="w-5 h-5 text-slate-500" />
+                 </div>
+                 <h3 className="text-xs font-bold text-slate-600">Identidade da Marca</h3>
+                 <p className="text-[10px] text-slate-400 mb-2 max-w-[150px]">Adicione Logo, Telefone e Cores Automáticas no PRO</p>
+                 <button onClick={() => openSubscriptionManagement()} className="text-[10px] font-bold text-brand-600 border border-brand-200 bg-white px-2 py-1 rounded-md hover:bg-brand-50">
+                    Desbloquear
+                 </button>
             </div>
-          </div>
+          )}
 
           <hr className="border-slate-100" />
           
-          {/* --- STYLE LIBRARY --- */}
-          <div className="space-y-4">
-             <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1">
-                <Wand2 className="w-3 h-3" /> Estilos Rápidos (1-Click)
-             </h3>
-             <div className="grid grid-cols-2 gap-2">
-                <button 
-                  onClick={() => applyStyle('minimal')}
-                  className={`p-2 rounded-lg text-[10px] font-medium border flex items-center gap-2 transition-all ${offerData.offerStyle === 'minimal' ? 'bg-slate-800 text-white border-slate-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
-                >
-                  <div className="w-4 h-4 bg-slate-100 rounded-full border border-slate-300" /> Minimalista
-                </button>
-                <button 
-                  onClick={() => applyStyle('luxury')}
-                  className={`p-2 rounded-lg text-[10px] font-medium border flex items-center gap-2 transition-all ${offerData.offerStyle === 'luxury' ? 'bg-yellow-900 text-yellow-50 border-yellow-900' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
-                >
-                  <Diamond className="w-3 h-3 text-yellow-500" /> Luxo / Gold
-                </button>
-                <button 
-                  onClick={() => applyStyle('gourmet')}
-                  className={`p-2 rounded-lg text-[10px] font-medium border flex items-center gap-2 transition-all ${offerData.offerStyle === 'gourmet' ? 'bg-orange-600 text-white border-orange-600' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
-                >
-                  <Utensils className="w-3 h-3 text-white" /> Gourmet
-                </button>
-                <button 
-                  onClick={() => applyStyle('tech')}
-                  className={`p-2 rounded-lg text-[10px] font-medium border flex items-center gap-2 transition-all ${offerData.offerStyle === 'tech' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
-                >
-                  <Cpu className="w-3 h-3 text-cyan-300" /> Tech / Neon
-                </button>
-                <button 
-                  onClick={() => applyStyle('organic')}
-                  className={`p-2 rounded-lg text-[10px] font-medium border flex items-center gap-2 transition-all ${offerData.offerStyle === 'organic' ? 'bg-green-700 text-white border-green-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
-                >
-                  <Leaf className="w-3 h-3 text-green-200" /> Orgânico
-                </button>
-             </div>
-             
-             {/* PRODUCT ISOLATION TOGGLE */}
-             <div className="flex items-center justify-between bg-slate-100 p-3 rounded-lg border border-slate-200 cursor-pointer" onClick={() => setOfferData(prev => ({...prev, isolateProduct: !prev.isolateProduct}))}>
-                <div className="flex items-center gap-2">
-                   <div className="p-1 bg-white rounded-md shadow-sm text-slate-600">
-                      <Eraser className="w-3 h-3" />
-                   </div>
-                   <div className="flex flex-col">
-                      <span className="text-[10px] font-bold text-slate-700">Fundo Estúdio / Limpo</span>
-                      <span className="text-[9px] text-slate-400">Tenta isolar o produto</span>
-                   </div>
-                </div>
-                <div className={`w-8 h-4 rounded-full p-0.5 transition-colors ${offerData.isolateProduct ? 'bg-brand-500' : 'bg-slate-300'}`}>
-                   <div className={`w-3 h-3 bg-white rounded-full shadow-md transform transition-transform ${offerData.isolateProduct ? 'translate-x-4' : 'translate-x-0'}`} />
-                </div>
-             </div>
-          </div>
+          {/* --- STYLE LIBRARY - ONLY FOR PRO --- */}
+          {isPro ? (
+            <div className="space-y-4">
+              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                  <Wand2 className="w-3 h-3" /> Estilos Rápidos (1-Click)
+              </h3>
+              <div className="grid grid-cols-2 gap-2">
+                  <button 
+                    onClick={() => applyStyle('minimal')}
+                    className={`p-2 rounded-lg text-[10px] font-medium border flex items-center gap-2 transition-all ${offerData.offerStyle === 'minimal' ? 'bg-slate-800 text-white border-slate-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                  >
+                    <div className="w-4 h-4 bg-slate-100 rounded-full border border-slate-300" /> Minimalista
+                  </button>
+                  <button 
+                    onClick={() => applyStyle('luxury')}
+                    className={`p-2 rounded-lg text-[10px] font-medium border flex items-center gap-2 transition-all ${offerData.offerStyle === 'luxury' ? 'bg-yellow-900 text-yellow-50 border-yellow-900' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                  >
+                    <Diamond className="w-3 h-3 text-yellow-500" /> Luxo / Gold
+                  </button>
+                  <button 
+                    onClick={() => applyStyle('gourmet')}
+                    className={`p-2 rounded-lg text-[10px] font-medium border flex items-center gap-2 transition-all ${offerData.offerStyle === 'gourmet' ? 'bg-orange-600 text-white border-orange-600' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                  >
+                    <Utensils className="w-3 h-3 text-white" /> Gourmet
+                  </button>
+                  <button 
+                    onClick={() => applyStyle('tech')}
+                    className={`p-2 rounded-lg text-[10px] font-medium border flex items-center gap-2 transition-all ${offerData.offerStyle === 'tech' ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                  >
+                    <Cpu className="w-3 h-3 text-cyan-300" /> Tech / Neon
+                  </button>
+                  <button 
+                    onClick={() => applyStyle('organic')}
+                    className={`p-2 rounded-lg text-[10px] font-medium border flex items-center gap-2 transition-all ${offerData.offerStyle === 'organic' ? 'bg-green-700 text-white border-green-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                  >
+                    <Leaf className="w-3 h-3 text-green-200" /> Orgânico
+                  </button>
+              </div>
+              
+              {/* PRODUCT ISOLATION TOGGLE */}
+              <div className="flex items-center justify-between bg-slate-100 p-3 rounded-lg border border-slate-200 cursor-pointer" onClick={() => setOfferData(prev => ({...prev, isolateProduct: !prev.isolateProduct}))}>
+                  <div className="flex items-center gap-2">
+                    <div className="p-1 bg-white rounded-md shadow-sm text-slate-600">
+                        <Eraser className="w-3 h-3" />
+                    </div>
+                    <div className="flex flex-col">
+                        <span className="text-[10px] font-bold text-slate-700">Fundo Estúdio / Limpo</span>
+                        <span className="text-[9px] text-slate-400">Tenta isolar o produto</span>
+                    </div>
+                  </div>
+                  <div className={`w-8 h-4 rounded-full p-0.5 transition-colors ${offerData.isolateProduct ? 'bg-brand-500' : 'bg-slate-300'}`}>
+                    <div className={`w-3 h-3 bg-white rounded-full shadow-md transform transition-transform ${offerData.isolateProduct ? 'translate-x-4' : 'translate-x-0'}`} />
+                  </div>
+              </div>
+            </div>
+          ) : (
+            // LOCKED STATE FOR STYLES
+             <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex flex-col items-center justify-center text-center opacity-80">
+                 <div className="w-10 h-10 bg-slate-200 rounded-full flex items-center justify-center mb-2">
+                     <Wand2 className="w-5 h-5 text-slate-500" />
+                 </div>
+                 <h3 className="text-xs font-bold text-slate-600">Estilos Rápidos (1-Click)</h3>
+                 <p className="text-[10px] text-slate-400 mb-2 max-w-[150px]">Presets como Luxo, Gourmet e Tech disponíveis no PRO</p>
+                 <button onClick={() => openSubscriptionManagement()} className="text-[10px] font-bold text-brand-600 border border-brand-200 bg-white px-2 py-1 rounded-md hover:bg-brand-50">
+                    Desbloquear
+                 </button>
+            </div>
+          )}
 
           <hr className="border-slate-100" />
           
@@ -627,7 +777,16 @@ const App: React.FC = () => {
             <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">2. Configuração de Imagem</h3>
             <div className="flex p-1 bg-slate-100 rounded-xl mb-4 overflow-x-auto">
               <button onClick={() => setMode('generate')} className={`flex-1 py-2 px-2 rounded-lg text-[10px] font-medium flex items-center justify-center gap-2 ${mode === 'generate' ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500'}`}><Wand2 className="w-3 h-3" /> Criar (IA)</button>
-              <button onClick={() => setMode('remix')} className={`flex-1 py-2 px-2 rounded-lg text-[10px] font-medium flex items-center justify-center gap-2 ${mode === 'remix' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500'}`}><RefreshCw className="w-3 h-3" /> Recriar (IA)</button>
+              
+              {/* REMIX - ONLY FOR PRO */}
+              {isPro ? (
+                  <button onClick={() => setMode('remix')} className={`flex-1 py-2 px-2 rounded-lg text-[10px] font-medium flex items-center justify-center gap-2 ${mode === 'remix' ? 'bg-white text-purple-600 shadow-sm' : 'text-slate-500'}`}><RefreshCw className="w-3 h-3" /> Recriar (IA)</button>
+              ) : (
+                   <button onClick={() => openSubscriptionManagement()} className="flex-1 py-2 px-2 rounded-lg text-[10px] font-medium flex items-center justify-center gap-1 text-slate-400 bg-slate-100 opacity-60 cursor-not-allowed" title="Disponível no PRO">
+                       <Lock className="w-3 h-3" /> Recriar
+                   </button>
+              )}
+              
               <button onClick={() => setMode('upload')} className={`flex-1 py-2 px-2 rounded-lg text-[10px] font-medium flex items-center justify-center gap-2 ${mode === 'upload' ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-500'}`}><Upload className="w-3 h-3" /> Upload</button>
             </div>
 
@@ -749,6 +908,27 @@ const App: React.FC = () => {
                <div>
                   <label className="block text-xs font-medium text-slate-700 mb-2 flex items-center gap-1"><Palette className="w-3 h-3" /> Cor do Texto</label>
                   <div className="flex flex-wrap gap-2 bg-slate-50 p-2 rounded-md border border-slate-200 justify-start">
+                    
+                    {/* Render Palette Colors if Available - Quick Access (ONLY IF PRO HAS IDENTITY) */}
+                    {isPro && companyInfo.brandPalette && companyInfo.brandPalette.length > 0 && (
+                        <>
+                            {companyInfo.brandPalette.map((color, idx) => (
+                            <button
+                                key={`palette-quick-${idx}`}
+                                onClick={() => applyBrandColor(color)}
+                                className={`w-8 h-8 rounded-full border shadow-sm transition-all flex items-center justify-center relative ${offerData.customColor === color && offerData.textColor === 'custom' ? 'ring-2 ring-brand-500 scale-110 z-10' : 'ring-0 opacity-90'}`}
+                                style={{ backgroundColor: color }}
+                                title="Cor da Marca"
+                            >
+                                <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-white rounded-full flex items-center justify-center shadow-sm">
+                                    <div className="w-1.5 h-1.5 bg-slate-400 rounded-full"></div>
+                                </div>
+                            </button>
+                            ))}
+                            <div className="w-px h-6 bg-slate-300 mx-1 self-center"></div>
+                        </>
+                    )}
+
                     {colorOptions.map((color) => (
                       <button key={color.id} onClick={() => setOfferData(prev => ({ ...prev, textColor: color.id as any }))} className={`w-8 h-8 rounded-full border shadow-sm transition-all ${offerData.textColor === color.id ? 'ring-2 ring-brand-500 scale-110' : 'ring-0 opacity-80'}`} style={{ backgroundColor: color.bg }} />
                     ))}
@@ -774,9 +954,18 @@ const App: React.FC = () => {
           {/* --- COPY EDITOR PANEL --- */}
           {imageState.content && (
             <div className="w-full max-w-2xl bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-6 animate-in fade-in slide-in-from-top-4">
-              <div className="flex items-center gap-2 mb-3 text-brand-600">
-                <PencilLine className="w-4 h-4" />
-                <h3 className="text-xs font-bold uppercase tracking-wider">Editar Texto Gerado</h3>
+              <div className="flex items-center justify-between mb-3 text-brand-600">
+                <div className="flex items-center gap-2">
+                   <PencilLine className="w-4 h-4" />
+                   <h3 className="text-xs font-bold uppercase tracking-wider">Editar Texto Gerado</h3>
+                </div>
+                <button 
+                    onClick={handleRegenerateText}
+                    disabled={isRegeneratingText}
+                    className="flex items-center gap-1 text-[10px] bg-brand-50 text-brand-600 px-2 py-1 rounded-md hover:bg-brand-100 transition-colors disabled:opacity-50"
+                >
+                    <RotateCcw className={`w-3 h-3 ${isRegeneratingText ? 'animate-spin' : ''}`} /> Recriar Texto
+                </button>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div className="col-span-1 md:col-span-2">
@@ -789,7 +978,7 @@ const App: React.FC = () => {
                    />
                 </div>
                 <div>
-                   <label className="block text-[10px] font-bold text-slate-500 mb-1">Corpo (Subtext)</label>
+                   <label className="block text-xs font-bold text-slate-500 mb-1">Corpo (Subtext)</label>
                    <textarea 
                       rows={3}
                       value={imageState.content.subtext} 

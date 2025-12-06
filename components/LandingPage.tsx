@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { Sparkles, CheckCircle2, Zap, LayoutTemplate, Smartphone, ArrowRight, ShieldCheck, MessageCircle, Star, Quote, Building2, Briefcase } from 'lucide-react';
+import { Sparkles, CheckCircle2, Zap, LayoutTemplate, Smartphone, ArrowRight, ShieldCheck, MessageCircle, Star, Quote, XCircle, Lock } from 'lucide-react';
 import { Button } from './Button';
 import { storageService } from '../services/storageService';
 
@@ -209,7 +209,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
             <p className="text-slate-600">Escolha a melhor opção para o seu negócio</p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
             {/* Free Plan */}
             <div className="bg-slate-50 p-8 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-all relative overflow-hidden">
               <h3 className="text-lg font-bold text-slate-900 mb-2">Iniciante</h3>
@@ -219,16 +219,22 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
               </div>
               <ul className="space-y-4 mb-8">
                 <li className="flex items-center gap-3 text-slate-600">
-                  <CheckCircle2 className="w-5 h-5 text-slate-400" /> 2 gerações por dia
+                  <CheckCircle2 className="w-5 h-5 text-green-500" /> 2 gerações por dia
                 </li>
                 <li className="flex items-center gap-3 text-slate-600">
-                  <CheckCircle2 className="w-5 h-5 text-slate-400" /> Qualidade Standard
+                  <CheckCircle2 className="w-5 h-5 text-green-500" /> Upload de Imagens
                 </li>
-                <li className="flex items-center gap-3 text-slate-600">
-                  <CheckCircle2 className="w-5 h-5 text-slate-400" /> Modelos básicos
+                 <li className="flex items-center gap-3 text-slate-400">
+                  <XCircle className="w-5 h-5 text-slate-300" /> Sem Identidade de Marca
                 </li>
-                <li className="flex items-center gap-3 text-slate-600">
-                  <CheckCircle2 className="w-5 h-5 text-slate-400" /> Marca d'água no canto
+                <li className="flex items-center gap-3 text-slate-400">
+                  <XCircle className="w-5 h-5 text-slate-300" /> Sem Estilos Rápidos (1-Click)
+                </li>
+                <li className="flex items-center gap-3 text-slate-400">
+                  <XCircle className="w-5 h-5 text-slate-300" /> Sem Modo Remix (Recriar IA)
+                </li>
+                 <li className="flex items-center gap-3 text-slate-400">
+                  <XCircle className="w-5 h-5 text-slate-300" /> Marca d'água nas imagens
                 </li>
               </ul>
               <Button onClick={onStart} variant="outline" className="w-full">
@@ -253,16 +259,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
                   <CheckCircle2 className="w-5 h-5 text-brand-400" /> <strong>Gerações Ilimitadas</strong>
                 </li>
                 <li className="flex items-center gap-3 text-white">
-                  <CheckCircle2 className="w-5 h-5 text-brand-400" /> <strong>IA Avançada (Alta Definição)</strong>
+                  <CheckCircle2 className="w-5 h-5 text-brand-400" /> <strong>Identidade de Marca</strong> (Logo/Cores)
                 </li>
                 <li className="flex items-center gap-3 text-white">
-                  <CheckCircle2 className="w-5 h-5 text-brand-400" /> Modo Remix (Image-to-Image)
+                  <CheckCircle2 className="w-5 h-5 text-brand-400" /> <strong>Estilos Rápidos</strong> (Luxo, Gourmet...)
                 </li>
                 <li className="flex items-center gap-3 text-white">
-                  <CheckCircle2 className="w-5 h-5 text-brand-400" /> Sem marca d'água
+                  <CheckCircle2 className="w-5 h-5 text-brand-400" /> <strong>Modo Remix</strong> (Image-to-Image)
+                </li>
+                 <li className="flex items-center gap-3 text-white">
+                  <CheckCircle2 className="w-5 h-5 text-brand-400" /> <strong>Sem marca d'água</strong>
                 </li>
                 <li className="flex items-center gap-3 text-white">
-                  <CheckCircle2 className="w-5 h-5 text-brand-400" /> Suporte Prioritário
+                  <CheckCircle2 className="w-5 h-5 text-brand-400" /> IA Avançada (Ultra-HD)
                 </li>
               </ul>
               <Button onClick={onStart} variant="primary" className="w-full py-4 text-lg bg-brand-500 hover:bg-brand-400 border-none">
@@ -271,40 +280,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
               <div className="mt-4 flex justify-center items-center gap-2 text-xs text-slate-400">
                 <ShieldCheck className="w-3 h-3" /> Garantia de 7 dias
               </div>
-            </div>
-
-            {/* Agency Plan (New) */}
-            <div className="bg-gradient-to-br from-purple-900 to-indigo-900 p-8 rounded-3xl border border-purple-800 shadow-xl relative overflow-hidden">
-               <div className="absolute top-0 right-0 bg-yellow-400 text-purple-900 text-xs font-bold px-3 py-1 rounded-bl-xl">
-                AGÊNCIAS
-              </div>
-              <h3 className="text-lg font-bold text-white mb-2 flex items-center gap-2">
-                 Agency <Briefcase className="w-4 h-4 text-purple-300" />
-              </h3>
-              <div className="flex items-baseline gap-1 mb-6">
-                <span className="text-4xl font-extrabold text-white">R$ 197</span>
-                <span className="text-purple-200">/mês</span>
-              </div>
-              <ul className="space-y-4 mb-8">
-                <li className="flex items-center gap-3 text-purple-100">
-                  <CheckCircle2 className="w-5 h-5 text-yellow-400" /> <strong>Tudo do Plano PRO</strong>
-                </li>
-                <li className="flex items-center gap-3 text-purple-100">
-                  <CheckCircle2 className="w-5 h-5 text-yellow-400" /> <strong>Multi-Marcas (Até 10)</strong>
-                </li>
-                <li className="flex items-center gap-3 text-purple-100">
-                  <CheckCircle2 className="w-5 h-5 text-yellow-400" /> Gestão de Logotipos
-                </li>
-                <li className="flex items-center gap-3 text-purple-100">
-                  <CheckCircle2 className="w-5 h-5 text-yellow-400" /> Alternância rápida de clientes
-                </li>
-                 <li className="flex items-center gap-3 text-purple-100">
-                  <CheckCircle2 className="w-5 h-5 text-yellow-400" /> Licença Comercial Estendida
-                </li>
-              </ul>
-              <Button onClick={onStart} className="w-full !bg-yellow-400 !text-purple-900 !hover:bg-yellow-500 border-none font-bold">
-                Plano Agência
-              </Button>
             </div>
 
           </div>

@@ -1,12 +1,13 @@
 
-
-import { User, UsageLog, PlanType, AdminStats, Brand, SystemSettings } from '../types';
+import { User, UsageLog, PlanType, AdminStats, SystemSettings, BusinessSegment, Campaign, FinancialTransaction, AppNotification } from '../types';
 
 const USERS_KEY = 'promogen_users';
 const CURRENT_USER_KEY = 'promogen_current_session';
 const USAGE_KEY = 'promogen_usage_logs';
-const BRANDS_KEY = 'promogen_brands';
 const SETTINGS_KEY = 'promogen_settings';
+const CAMPAIGNS_KEY = 'promogen_campaigns';
+const TRANSACTIONS_KEY = 'promogen_transactions';
+const NOTIFICATIONS_KEY = 'promogen_notifications';
 
 // Helper to get today's date string YYYY-MM-DD
 const getTodayString = () => new Date().toISOString().split('T')[0];
@@ -22,14 +23,9 @@ export const storageService = {
     }
 
     const admin = users.find((u: any) => u.email === 'admin@promogen.com');
-    const agency = users.find((u: any) => u.email === 'agency@promogen.com');
 
-    // Se o admin não existe, OU se a senha for a antiga ('admin'), recria tudo.
-    if (!admin || admin.password === 'admin' || admin.password === '123' || !agency) {
-      
-      // Datas calculadas para teste
-      const nextMonth = new Date();
-      nextMonth.setDate(nextMonth.getDate() + 31);
+    // Se o admin não existe, recria tudo.
+    if (!admin || admin.password === 'admin' || admin.password === '123') {
       
       const nextYear = new Date();
       nextYear.setFullYear(nextYear.getFullYear() + 1);
@@ -41,17 +37,9 @@ export const storageService = {
           email: 'admin@promogen.com',
           password: 'admin123',
           plan: 'pro',
+          businessSegment: 'Tecnologia / Eletrônicos',
           createdAt: new Date().toISOString(),
           isAdmin: true
-        },
-        {
-          id: 'agency-user-id',
-          name: 'Agência Criativa',
-          email: 'agency@promogen.com',
-          password: '123456',
-          plan: 'agency', // Plano Agency
-          createdAt: new Date().toISOString(),
-          subscriptionExpiry: nextMonth.toISOString()
         },
         {
           id: 'free-user-id',
@@ -59,6 +47,7 @@ export const storageService = {
           email: 'free@promogen.com',
           password: '123456',
           plan: 'free',
+          businessSegment: 'Alimentação / Restaurante',
           createdAt: new Date().toISOString()
         },
         {
@@ -67,19 +56,17 @@ export const storageService = {
           email: 'pro@promogen.com',
           password: '123456',
           plan: 'pro',
+          businessSegment: 'Varejo / Loja de Roupas',
           createdAt: new Date().toISOString(),
           subscriptionExpiry: nextYear.toISOString()
         }
       ];
-      // Merge existing users with test users to avoid overwriting real registrations completely if logic changes,
-      // but for this "reset" logic, we overwrite to ensure consistency.
       localStorage.setItem(USERS_KEY, JSON.stringify(testUsers));
-      console.log('Test users initialized/updated (including Agency)');
     }
   },
 
   // --- Auth ---
-  register: (email: string, password: string, name: string): User => {
+  register: (email: string, password: string, name: string, businessSegment: BusinessSegment): User => {
     const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
     
     if (users.find((u: any) => u.email === email)) {
@@ -91,6 +78,7 @@ export const storageService = {
       email,
       name,
       plan: 'free', // Default plan
+      businessSegment,
       createdAt: new Date().toISOString()
     };
 
@@ -131,6 +119,35 @@ export const storageService = {
     return stored ? JSON.parse(stored) : null;
   },
 
+  updateUser: (userId: string, data: Partial<User>): User => {
+    const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+    let updatedUser: User | null = null;
+
+    const newUsersList = users.map((u: any) => {
+        if (u.id === userId) {
+            updatedUser = { ...u, ...data };
+            return updatedUser;
+        }
+        return u;
+    });
+
+    if (!updatedUser) throw new Error("Usuário não encontrado");
+
+    localStorage.setItem(USERS_KEY, JSON.stringify(newUsersList));
+
+    // Update current session if applicable
+    const current = storageService.getCurrentUser();
+    if (current && current.id === userId) {
+        // Remove password from object before saving to session storage if it exists in data
+        const { password, ...safeUser } = updatedUser as any;
+        localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(safeUser));
+        return safeUser;
+    }
+
+    const { password, ...safeReturn } = updatedUser as any;
+    return safeReturn;
+  },
+
   // --- Quota Management ---
   checkQuota: (userId: string): { allowed: boolean; remaining: number; used: number } => {
     const user = storageService.getCurrentUser();
@@ -144,7 +161,7 @@ export const storageService = {
     
     if (!dbUser) return { allowed: false, remaining: 0, used: 0 };
 
-    if (dbUser.plan === 'pro' || dbUser.plan === 'agency') return { allowed: true, remaining: 9999, used: 0 };
+    if (dbUser.plan === 'pro') return { allowed: true, remaining: 9999, used: 0 };
 
     const logs = JSON.parse(localStorage.getItem(USAGE_KEY) || '{}');
     const today = getTodayString();
@@ -175,18 +192,56 @@ export const storageService = {
   },
 
   // --- Subscription ---
+  
+  // Creates a pending transaction when user clicks payment link
+  createSubscriptionTransaction: (userId: string, userName: string) => {
+      const tx: FinancialTransaction = {
+          id: crypto.randomUUID(),
+          userId,
+          userName,
+          type: 'income',
+          category: 'Assinatura',
+          description: `Assinatura PRO - ${userName}`,
+          amount: 97.00,
+          date: new Date().toISOString(),
+          status: 'pending',
+          planType: 'annual'
+      };
+      storageService.addFinancialTransaction(tx);
+  },
+
+  // Admin approves transaction -> Upgrades user
+  approveTransaction: (txId: string) => {
+      const transactions = JSON.parse(localStorage.getItem(TRANSACTIONS_KEY) || '[]');
+      const txIndex = transactions.findIndex((t: any) => t.id === txId);
+      
+      if (txIndex === -1) return;
+      
+      const tx = transactions[txIndex];
+      
+      // Update TX Status
+      transactions[txIndex].status = 'paid';
+      localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(transactions));
+
+      // Upgrade User if userId is present
+      if (tx.userId) {
+          storageService.upgradeToPro(tx.userId, 'pro');
+      }
+  },
+
+  // Admin rejects transaction
+  rejectTransaction: (txId: string) => {
+      const transactions = JSON.parse(localStorage.getItem(TRANSACTIONS_KEY) || '[]');
+      const updated = transactions.map((t: any) => t.id === txId ? { ...t, status: 'rejected' } : t);
+      localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(updated));
+  },
+
   upgradeToPro: (userId: string, plan: PlanType = 'pro') => {
     const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
     
-    // Calculate Expiry Date
+    // Calculate Expiry Date (Pro = Annual)
     const expiryDate = new Date();
-    if (plan === 'pro') {
-        // Pro = Annual
-        expiryDate.setFullYear(expiryDate.getFullYear() + 1);
-    } else if (plan === 'agency') {
-        // Agency = Monthly (31 days)
-        expiryDate.setDate(expiryDate.getDate() + 31);
-    }
+    expiryDate.setFullYear(expiryDate.getFullYear() + 1);
 
     const updatedUsers = users.map((u: any) => {
       if (u.id === userId) {
@@ -210,58 +265,26 @@ export const storageService = {
     }
   },
 
-  // Simula a validação de um pagamento no "backend"
-  validatePayment: async (userId: string): Promise<boolean> => {
-      // Em um app real, aqui você chamaria sua API para ver se o webhook do Mercado Pago chegou
-      await new Promise(resolve => setTimeout(resolve, 2000)); // Simula delay de rede
-      return true; // Sempre retorna true para teste
-  },
-
-  // --- Brand Management (Agency Only) ---
-  saveBrand: (userId: string, brand: Omit<Brand, 'id' | 'userId'>) => {
-    const brands = JSON.parse(localStorage.getItem(BRANDS_KEY) || '[]');
-    const newBrand: Brand = {
-      id: crypto.randomUUID(),
-      userId,
-      ...brand
-    };
-    brands.push(newBrand);
-    localStorage.setItem(BRANDS_KEY, JSON.stringify(brands));
-    return newBrand;
-  },
-
-  getBrands: (userId: string): Brand[] => {
-    const brands = JSON.parse(localStorage.getItem(BRANDS_KEY) || '[]');
-    return brands.filter((b: Brand) => b.userId === userId);
-  },
-
-  deleteBrand: (brandId: string) => {
-    const brands = JSON.parse(localStorage.getItem(BRANDS_KEY) || '[]');
-    const filteredBrands = brands.filter((b: Brand) => b.id !== brandId);
-    localStorage.setItem(BRANDS_KEY, JSON.stringify(filteredBrands));
-  },
-
   // --- Settings (Payment Links & API Keys) ---
   getSettings: (): SystemSettings => {
     const saved = localStorage.getItem(SETTINGS_KEY);
     if (saved) {
       const parsed = JSON.parse(saved);
-      // Ensure new fields exist even in old saved data
       return {
         proPlanLink: parsed.proPlanLink || "https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=placeholder-pro",
-        agencyPlanLink: parsed.agencyPlanLink || "https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=placeholder-agency",
         googleApiKey: parsed.googleApiKey || "",
         whatsappNumber: parsed.whatsappNumber || "5511999999999",
-        whatsappMessage: parsed.whatsappMessage || "Olá, preciso de ajuda com o PromoGen."
+        whatsappMessage: parsed.whatsappMessage || "Olá, preciso de ajuda com o PromoGen.",
+        termsOfService: parsed.termsOfService || "Termos de uso padrão..."
       };
     }
     // Default placeholders
     return {
       proPlanLink: "https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=placeholder-pro",
-      agencyPlanLink: "https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=placeholder-agency",
       googleApiKey: "", 
       whatsappNumber: "5511999999999",
-      whatsappMessage: "Olá, preciso de ajuda com o PromoGen."
+      whatsappMessage: "Olá, preciso de ajuda com o PromoGen.",
+      termsOfService: "1. O uso deste software é pessoal e intransferível.\n2. Não nos responsabilizamos pelo conteúdo gerado.\n3. O plano PRO tem validade de 1 ano."
     };
   },
 
@@ -283,15 +306,34 @@ export const storageService = {
 
   updateUserPlan: (userId: string, plan: PlanType) => {
     // Re-uses logic to ensure date calculation is consistent
-    storageService.upgradeToPro(userId, plan);
+    if (plan === 'free') {
+        const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+        const updatedUsers = users.map((u: any) => {
+            if (u.id === userId) {
+                return { ...u, plan: 'free', subscriptionExpiry: undefined };
+            }
+            return u;
+        });
+        localStorage.setItem(USERS_KEY, JSON.stringify(updatedUsers));
+        
+        const currentUser = storageService.getCurrentUser();
+        if (currentUser && currentUser.id === userId) {
+            currentUser.plan = 'free';
+            currentUser.subscriptionExpiry = undefined;
+            localStorage.setItem(CURRENT_USER_KEY, JSON.stringify(currentUser));
+        }
+    } else {
+        storageService.upgradeToPro(userId, plan);
+    }
   },
 
   getDashboardStats: (): AdminStats => {
     const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
     const logs = JSON.parse(localStorage.getItem(USAGE_KEY) || '{}');
+    const transactions = storageService.getFinancialTransactions();
     
     const totalUsers = users.length;
-    const totalPro = users.filter((u: any) => (u.plan === 'pro' || u.plan === 'agency') && !u.isAdmin).length;
+    const totalPro = users.filter((u: any) => u.plan === 'pro' && !u.isAdmin).length;
     const totalFree = users.filter((u: any) => u.plan === 'free').length;
     
     let totalGenerations = 0;
@@ -303,12 +345,18 @@ export const storageService = {
         }
     });
 
-    // Calculations
-    const totalProUsers = users.filter((u: any) => u.plan === 'pro').length;
-    const totalAgencyUsers = users.filter((u: any) => u.plan === 'agency').length;
-    
-    const mrr = (totalProUsers * 8.08) + (totalAgencyUsers * 197);
+    const mrr = totalPro * 8.08; 
     const estimatedCost = totalGenerations * 0.02;
+
+    // Financial Calculation
+    let income = 0;
+    let expenses = 0;
+    transactions.forEach(tx => {
+        if (tx.status === 'paid') {
+            if (tx.type === 'income') income += tx.amount;
+            if (tx.type === 'expense') expenses += tx.amount;
+        }
+    });
 
     return {
       totalUsers,
@@ -316,7 +364,115 @@ export const storageService = {
       totalFree,
       mrr,
       totalGenerations,
-      estimatedCost
+      estimatedCost,
+      cashFlow: {
+          income,
+          expenses,
+          balance: income - expenses
+      }
     };
+  },
+
+  // --- Financial Transactions (Enhanced) ---
+  getFinancialTransactions: (userId?: string): FinancialTransaction[] => {
+      const stored = JSON.parse(localStorage.getItem(TRANSACTIONS_KEY) || '[]');
+      let result = stored;
+
+      // Migrate mock if needed
+      if (stored.length === 0) {
+          const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+          const proUsers = users.filter((u: any) => u.plan === 'pro' && !u.isAdmin);
+          const initialData = proUsers.map((u: User) => ({
+              id: `tx_${u.id.substring(0,8)}`,
+              userId: u.id,
+              userName: u.name,
+              type: 'income',
+              category: 'Assinatura',
+              description: `Upgrade Plano Pro - ${u.name}`,
+              amount: 97.00,
+              date: u.createdAt,
+              status: 'paid'
+          }));
+          localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(initialData));
+          result = initialData;
+      }
+
+      if (userId) {
+          result = result.filter((tx: any) => tx.userId === userId);
+      }
+
+      return result.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  },
+
+  addFinancialTransaction: (tx: FinancialTransaction) => {
+      const transactions = JSON.parse(localStorage.getItem(TRANSACTIONS_KEY) || '[]');
+      transactions.push(tx);
+      localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(transactions));
+  },
+
+  deleteFinancialTransaction: (id: string) => {
+      const transactions = JSON.parse(localStorage.getItem(TRANSACTIONS_KEY) || '[]');
+      const filtered = transactions.filter((t: any) => t.id !== id);
+      localStorage.setItem(TRANSACTIONS_KEY, JSON.stringify(filtered));
+  },
+
+  // --- Campaigns & Notifications ---
+  getCampaigns: (): Campaign[] => {
+      return JSON.parse(localStorage.getItem(CAMPAIGNS_KEY) || '[]');
+  },
+
+  createCampaign: (campaign: Campaign) => {
+      const campaigns = JSON.parse(localStorage.getItem(CAMPAIGNS_KEY) || '[]');
+      campaigns.push(campaign);
+      localStorage.setItem(CAMPAIGNS_KEY, JSON.stringify(campaigns));
+
+      // GENERATE NOTIFICATIONS FOR TARGET USERS
+      const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
+      const notifications = JSON.parse(localStorage.getItem(NOTIFICATIONS_KEY) || '[]');
+
+      users.forEach((user: User) => {
+          // Check Segment
+          const segmentMatch = campaign.targetSegment === 'Todos' || user.businessSegment === campaign.targetSegment;
+          // Check Plan
+          const planMatch = campaign.targetPlan === 'all' || user.plan === campaign.targetPlan;
+
+          if (segmentMatch && planMatch) {
+              const notification: AppNotification = {
+                  id: crypto.randomUUID(),
+                  userId: user.id,
+                  title: campaign.name,
+                  message: campaign.message,
+                  date: new Date().toISOString(),
+                  read: false,
+                  type: 'campaign'
+              };
+              notifications.push(notification);
+          }
+      });
+
+      localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(notifications));
+  },
+
+  deleteCampaign: (id: string) => {
+      const campaigns = JSON.parse(localStorage.getItem(CAMPAIGNS_KEY) || '[]');
+      const filtered = campaigns.filter((c: any) => c.id !== id);
+      localStorage.setItem(CAMPAIGNS_KEY, JSON.stringify(filtered));
+  },
+
+  // --- Notification System ---
+  getUserNotifications: (userId: string): AppNotification[] => {
+      const all = JSON.parse(localStorage.getItem(NOTIFICATIONS_KEY) || '[]');
+      return all
+        .filter((n: AppNotification) => n.userId === userId)
+        .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  },
+
+  markNotificationAsRead: (notificationId: string) => {
+      const all = JSON.parse(localStorage.getItem(NOTIFICATIONS_KEY) || '[]');
+      const updated = all.map((n: AppNotification) => {
+          if (n.id === notificationId) return { ...n, read: true };
+          return n;
+      });
+      localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(updated));
   }
 };
