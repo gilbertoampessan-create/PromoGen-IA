@@ -148,7 +148,6 @@ export interface AdminStats {
 
 export interface SystemSettings {
   proPlanLink: string;
-  googleApiKey: string;
   whatsappNumber: string;
   whatsappMessage: string;
   termsOfService: string;

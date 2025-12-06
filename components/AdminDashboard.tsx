@@ -24,7 +24,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   const [endDate, setEndDate] = useState('');
 
   // Settings State
-  const [settings, setSettings] = useState<SystemSettings>({ proPlanLink: '', googleApiKey: '', whatsappNumber: '', whatsappMessage: '', termsOfService: '' });
+  const [settings, setSettings] = useState<SystemSettings>({ proPlanLink: '', whatsappNumber: '', whatsappMessage: '', termsOfService: '' });
   const [savedSuccess, setSavedSuccess] = useState(false);
 
   // User Edit Modal State
@@ -672,25 +672,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
              
              <form onSubmit={handleSaveSettings} className="p-6 space-y-6">
                 
-                {/* --- API KEY SECTION --- */}
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                    <label className="block text-sm font-bold text-amber-900 mb-2 flex items-center gap-2">
-                      <Key className="w-4 h-4" /> Chave da API Google Gemini
-                   </label>
-                   <div className="relative">
-                      <input 
-                          type="password" 
-                          placeholder="Cole sua API Key aqui (Começa com AIza...)" 
-                          className="w-full px-4 py-3 border border-amber-300 rounded-lg focus:ring-2 focus:ring-amber-500 outline-none text-sm font-mono bg-white text-slate-700"
-                          value={settings.googleApiKey}
-                          onChange={(e) => setSettings({...settings, googleApiKey: e.target.value})}
-                      />
-                   </div>
-                   <p className="text-xs text-amber-700 mt-2">
-                      Deixe em branco para usar a chave configurada no servidor (.env).
-                      <br/><strong>Atenção:</strong> Esta chave ficará salva no navegador. Use com cautela em computadores públicos.
-                   </p>
-                </div>
+                {/* --- API KEY SECTION REMOVED --- */}
 
                 <hr className="border-slate-100" />
 

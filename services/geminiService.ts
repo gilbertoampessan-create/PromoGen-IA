@@ -1,7 +1,5 @@
-
 import { GoogleGenAI } from "@google/genai";
 import { BannerContent, ImageAspect } from "../types";
-import { storageService } from "./storageService";
 
 interface GenerationResult {
   images: string[];
@@ -10,14 +8,8 @@ interface GenerationResult {
 
 // Helper to get initialized Gemini client
 const getGeminiClient = () => {
-  const settings = storageService.getSettings();
-  // Prioritize key from Admin Settings, fallback to env variable
-  const apiKey = settings.googleApiKey || process.env.API_KEY;
-  
-  if (!apiKey) {
-    throw new Error("Chave da API do Google não configurada. Configure no Painel Admin.");
-  }
-  return new GoogleGenAI({ apiKey });
+  // The API key must be obtained exclusively from the environment variable process.env.API_KEY.
+  return new GoogleGenAI({ apiKey: process.env.API_KEY });
 };
 
 // Helper to clean JSON string
