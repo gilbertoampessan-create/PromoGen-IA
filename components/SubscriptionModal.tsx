@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { X, Sparkles, Check, Crown, ShieldCheck, ExternalLink, MessageCircle, Clock, FileText } from 'lucide-react';
 import { Button } from './Button';
@@ -23,18 +22,36 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, on
   const handleSubscribeClick = () => {
       // 1. Get correct link from dynamic settings
       const settings = storageService.getSettings();
-      const link = settings.proPlanLink;
+      let link = settings.proPlanLink;
       
-      // 2. Open in new tab
+      // 2. Enhance Link with Email and External Reference
+      // Isso é crucial para quando você tiver o Backend: o external_reference permite saber QUEM pagou.
+      const currentUser = storageService.getCurrentUser();
+      
       if (link && link !== '') {
-          window.open(link, '_blank');
+          const url = new URL(link);
+          
+          if (currentUser?.email) {
+            url.searchParams.set('payer_email', currentUser.email);
+          }
+          
+          // Enviamos o ID do usuário como referência externa.
+          // O Mercado Pago devolve esse ID no Webhook, permitindo ativar o plano automaticamente pelo Backend.
+          if (userId) {
+            url.searchParams.set('external_reference', userId);
+          }
+          
+          // Adiciona back_url via parametro se a API suportar (alguns links estáticos ignoram, mas é boa prática tentar)
+          // O ideal é configurar isso no Painel do Mercado Pago.
+          url.searchParams.set('back_url', window.location.origin);
+
+          window.open(url.toString(), '_blank');
       } else {
           alert("Erro: Link de pagamento não configurado pelo administrador.");
           return;
       }
       
-      // 3. Register pending transaction
-      const currentUser = storageService.getCurrentUser();
+      // 3. Register pending transaction (Visual Feedback only until Backend is ready)
       if (currentUser) {
           storageService.createSubscriptionTransaction(userId, currentUser.name);
       }
@@ -79,7 +96,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, on
                 <p className="text-slate-600 mb-6 text-sm">
                     Sua solicitação foi registrada no sistema.
                     <br/>
-                    Assim que nosso time financeiro confirmar o pagamento, seu plano será liberado automaticamente.
+                    A janela do Mercado Pago foi aberta. Após concluir, seu acesso será liberado automaticamente.
                 </p>
                 
                 <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 mb-6">

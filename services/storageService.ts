@@ -277,10 +277,13 @@ export const storageService = {
   // --- Settings (Payment Links & API Keys) ---
   getSettings: (): SystemSettings => {
     const saved = localStorage.getItem(SETTINGS_KEY);
+    // Link padrão fornecido pelo usuário
+    const DEFAULT_MP_LINK = "https://www.mercadopago.com.br/subscriptions/checkout?preapproval_plan_id=a0d6af83b59247fa8b845fc7f3a67a7d";
+    
     if (saved) {
       const parsed = JSON.parse(saved);
       return {
-        proPlanLink: parsed.proPlanLink || "https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=placeholder-pro",
+        proPlanLink: parsed.proPlanLink || DEFAULT_MP_LINK,
         whatsappNumber: parsed.whatsappNumber || "5511999999999",
         whatsappMessage: parsed.whatsappMessage || "Olá, preciso de ajuda com o PromoGen.",
         termsOfService: parsed.termsOfService || "Termos de uso padrão..."
@@ -288,7 +291,7 @@ export const storageService = {
     }
     // Default placeholders
     return {
-      proPlanLink: "https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=placeholder-pro",
+      proPlanLink: DEFAULT_MP_LINK,
       whatsappNumber: "5511999999999",
       whatsappMessage: "Olá, preciso de ajuda com o PromoGen.",
       termsOfService: "1. O uso deste software é pessoal e intransferível.\n2. Não nos responsabilizamos pelo conteúdo gerado.\n3. O plano PRO tem validade de 1 ano."
