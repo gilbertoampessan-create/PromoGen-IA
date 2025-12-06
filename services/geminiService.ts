@@ -1,3 +1,4 @@
+
 import { GoogleGenAI } from "@google/genai";
 import { BannerContent, ImageAspect } from "../types";
 
@@ -24,6 +25,21 @@ const generatePollinationsImage = async (prompt: string, aspect: ImageAspect, se
   const encodedPrompt = encodeURIComponent(prompt);
   const seed = Math.floor(Math.random() * 1000) + seedOffset;
   return `https://pollinations.ai/p/${encodedPrompt}?width=${width}&height=${height}&nologo=true&seed=${seed}`;
+};
+
+export const checkConnection = async (): Promise<boolean> => {
+  try {
+    const ai = getGeminiClient();
+    // Use a lightweight model check
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: { parts: [{ text: 'ping' }] },
+    });
+    return !!response.text;
+  } catch (e) {
+    console.error("AI Connection Check Failed", e);
+    return false;
+  }
 };
 
 export const generateBackgroundFromText = async (

@@ -2,8 +2,9 @@
 import React, { useState, useEffect } from 'react';
 import { User, AdminStats, SystemSettings, PlanType, Campaign, BUSINESS_SEGMENTS, BusinessSegment, FinancialTransaction } from '../types';
 import { storageService } from '../services/storageService';
+import { checkConnection } from '../services/geminiService';
 import { Button } from './Button';
-import { Users, DollarSign, Activity, Trash2, Shield, LogOut, Search, CreditCard, Settings, Link, Save, Check, Key, Phone, MessageSquare, Calendar, Clock, X, Coffee, Crown, Edit, Briefcase, TrendingUp, Send, Target, FileText, ArrowUpRight, ArrowDownRight, Plus, Minus, User as UserIcon, AlertCircle } from 'lucide-react';
+import { Users, DollarSign, Activity, Trash2, Shield, LogOut, Search, CreditCard, Settings, Link, Save, Check, Key, Phone, MessageSquare, Calendar, Clock, X, Coffee, Crown, Edit, Briefcase, TrendingUp, Send, Target, FileText, ArrowUpRight, ArrowDownRight, Plus, Minus, User as UserIcon, AlertCircle, Zap, RefreshCw, ExternalLink } from 'lucide-react';
 
 interface AdminDashboardProps {
   onLogout: () => void;
@@ -26,6 +27,9 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
   // Settings State
   const [settings, setSettings] = useState<SystemSettings>({ proPlanLink: '', whatsappNumber: '', whatsappMessage: '', termsOfService: '' });
   const [savedSuccess, setSavedSuccess] = useState(false);
+  
+  // AI Connection State
+  const [connectionStatus, setConnectionStatus] = useState<'idle' | 'testing' | 'success' | 'failed'>('idle');
 
   // User Edit Modal State
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -86,6 +90,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
     storageService.saveSettings(settings);
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 3000);
+  };
+
+  const handleTestConnection = async () => {
+    setConnectionStatus('testing');
+    const success = await checkConnection();
+    setConnectionStatus(success ? 'success' : 'failed');
   };
 
   const handleCreateCampaign = (e: React.FormEvent) => {
@@ -184,6 +194,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
 
   const pendingTransactions = financials.filter(tx => tx.status === 'pending');
   const historyTransactions = financials.filter(tx => tx.status !== 'pending');
+
+  const isApiKeyConfigured = !!process.env.API_KEY;
 
   return (
     <div className="min-h-screen bg-slate-100 font-sans relative pb-20">
@@ -667,12 +679,59 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
                   <Settings className="w-5 h-5 text-slate-400" /> Configurações do Sistema
                </h2>
-               <p className="text-sm text-slate-500 mt-1">Configure links de pagamento e chaves de API.</p>
+               <p className="text-sm text-slate-500 mt-1">Configure chaves, links e preferências.</p>
              </div>
              
              <form onSubmit={handleSaveSettings} className="p-6 space-y-6">
                 
-                {/* --- API KEY SECTION REMOVED --- */}
+                {/* --- API STATUS SECTION (SECURE) --- */}
+                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 relative overflow-hidden">
+                    {/* Background Pattern */}
+                    <div className="absolute top-0 right-0 p-4 opacity-5">
+                        <Zap className="w-24 h-24" />
+                    </div>
+
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
+                        <div>
+                            <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                                <Zap className="w-4 h-4 text-brand-600 fill-brand-100" /> Status da IA (Gemini)
+                            </h3>
+                            <p className="text-xs text-slate-500 mt-1 max-w-sm">
+                                A chave deve ser configurada via Variáveis de Ambiente por segurança.
+                            </p>
+                        </div>
+                        <div className="text-right flex flex-col items-end">
+                            <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold border ${isApiKeyConfigured ? 'bg-green-100 text-green-700 border-green-200' : 'bg-red-100 text-red-700 border-red-200'}`}>
+                                {isApiKeyConfigured ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />}
+                                {isApiKeyConfigured ? 'Chave Configurada' : 'Chave Ausente'}
+                            </span>
+                        </div>
+                    </div>
+
+                    {!isApiKeyConfigured ? (
+                        <div className="mt-4 p-3 bg-red-50 border border-red-100 rounded-lg text-xs text-red-800">
+                            <strong>Ação Necessária:</strong> Adicione <code>API_KEY</code> no arquivo <code>.env</code> ou nas configurações da Vercel.
+                            <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="block mt-2 text-brand-600 hover:underline flex items-center gap-1">
+                                <Key className="w-3 h-3" /> Gerar Chave no Google AI Studio <ExternalLink className="w-3 h-3" />
+                            </a>
+                        </div>
+                    ) : (
+                         <div className="mt-4 flex items-center gap-3">
+                             <Button 
+                                type="button" 
+                                onClick={handleTestConnection}
+                                disabled={connectionStatus === 'testing'}
+                                className={`text-xs py-2 px-3 h-auto ${connectionStatus === 'success' ? 'bg-green-600 hover:bg-green-700' : connectionStatus === 'failed' ? 'bg-red-600 hover:bg-red-700' : 'bg-slate-800 hover:bg-slate-900'}`}
+                             >
+                                 {connectionStatus === 'testing' && <RefreshCw className="w-3 h-3 mr-1 animate-spin" />}
+                                 {connectionStatus === 'success' && <Check className="w-3 h-3 mr-1" />}
+                                 {connectionStatus === 'failed' && <X className="w-3 h-3 mr-1" />}
+                                 {connectionStatus === 'idle' ? 'Testar Conexão' : connectionStatus === 'testing' ? 'Verificando...' : connectionStatus === 'success' ? 'Conexão OK' : 'Falha na Conexão'}
+                             </Button>
+                             {connectionStatus === 'success' && <span className="text-xs text-green-600 font-medium animate-in fade-in">Tudo pronto para gerar!</span>}
+                         </div>
+                    )}
+                </div>
 
                 <hr className="border-slate-100" />
 
