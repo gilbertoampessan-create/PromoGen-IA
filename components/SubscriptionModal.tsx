@@ -1,8 +1,9 @@
 
 import React, { useState } from 'react';
-import { X, Sparkles, Check, Crown, ShieldCheck, ExternalLink, MessageCircle, Clock } from 'lucide-react';
+import { X, Sparkles, Check, Crown, ShieldCheck, ExternalLink, MessageCircle, Clock, FileText } from 'lucide-react';
 import { Button } from './Button';
 import { storageService } from '../services/storageService';
+import { TermsModal } from './TermsModal';
 
 interface SubscriptionModalProps {
   isOpen: boolean;
@@ -15,6 +16,7 @@ type ModalStep = 'select' | 'payment_pending' | 'success';
 
 export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, onClose, userId, isUpgradeTriggered }) => {
   const [step, setStep] = useState<ModalStep>('select');
+  const [showTerms, setShowTerms] = useState(false);
 
   if (!isOpen) return null;
 
@@ -53,6 +55,7 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, on
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose}></div>
+      <TermsModal isOpen={showTerms} onClose={() => setShowTerms(false)} />
       
       <div className="relative bg-white w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
         <button onClick={onClose} className="absolute top-4 right-4 p-2 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors z-10">
@@ -151,9 +154,14 @@ export const SubscriptionModal: React.FC<SubscriptionModalProps> = ({ isOpen, on
                     Ir para Pagamento (R$ 97)
                 </Button>
                 
-                <p className="mt-4 text-center text-xs text-slate-400 flex items-center justify-center gap-1">
-                    <ShieldCheck className="w-3 h-3" /> Pagamento processado pelo Mercado Pago
-                </p>
+                <div className="mt-4 text-center">
+                    <p className="text-xs text-slate-400 flex items-center justify-center gap-1 mb-1">
+                        <ShieldCheck className="w-3 h-3" /> Pagamento processado pelo Mercado Pago
+                    </p>
+                    <button onClick={() => setShowTerms(true)} className="text-xs text-brand-600 hover:underline flex items-center justify-center gap-1 w-full mt-2">
+                        <FileText className="w-3 h-3" /> Ler Termos de Uso
+                    </button>
+                </div>
             </div>
           </>
         )}

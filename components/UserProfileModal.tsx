@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { User, PlanType, BUSINESS_SEGMENTS, BusinessSegment, FinancialTransaction } from '../types';
-import { X, User as UserIcon, Mail, Calendar, Check, CreditCard, Crown, Coffee, Briefcase, Phone, Pencil, Save, LogOut, Clock, AlertCircle } from 'lucide-react';
+import { X, User as UserIcon, Mail, Calendar, Check, CreditCard, Crown, Coffee, Briefcase, Phone, Pencil, Save, LogOut, Clock, AlertCircle, FileText } from 'lucide-react';
 import { Button } from './Button';
 import { storageService } from '../services/storageService';
+import { TermsModal } from './TermsModal';
 
 interface UserProfileModalProps {
   isOpen: boolean;
@@ -18,6 +19,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
   const [selectedPlan, setSelectedPlan] = useState<PlanType>(user.plan);
   const [isEditing, setIsEditing] = useState(false);
   const [transactions, setTransactions] = useState<FinancialTransaction[]>([]);
+  const [showTerms, setShowTerms] = useState(false);
   
   // Edit Form State
   const [formData, setFormData] = useState({
@@ -80,6 +82,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose}></div>
+      <TermsModal isOpen={showTerms} onClose={() => setShowTerms(false)} />
       
       <div className="relative bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col max-h-[90vh]">
         
@@ -242,7 +245,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
                     </label>
 
                     {/* Pro Option */}
-                    <label className={`flex items-center p-3 rounded-xl border cursor-pointer transition-all ${selectedPlan === 'pro' ? 'border-brand-500 bg-brand-50 ring-1 ring-brand-500' : 'border-slate-200 hover:border-brand-300'}`}>
+                    <label className={`flex items-center p-3 rounded-xl border cursor-pointer transition-all ${selectedPlan === 'pro' ? 'border-brand-500 bg-brand-50 ring-1 ring-brand-500' : 'border-slate-200 hover:border-brand-200 bg-white'}`}>
                         <input type="radio" name="plan" value="pro" checked={selectedPlan === 'pro'} onChange={() => setSelectedPlan('pro')} className="sr-only" />
                         <div className="w-8 h-8 rounded-full bg-brand-100 flex items-center justify-center text-brand-600 mr-3">
                             <Crown className="w-4 h-4" />
@@ -269,6 +272,12 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
                 <div className="text-center p-2 bg-green-50 rounded-lg text-green-700 text-sm font-medium flex items-center justify-center gap-2">
                     <Check className="w-4 h-4" /> Você já é um assinante PRO
                 </div>
+             )}
+
+             {!isEditing && (
+                 <button onClick={() => setShowTerms(true)} className="w-full py-2.5 text-sm text-slate-500 border border-slate-100 hover:bg-slate-50 rounded-xl font-medium flex items-center justify-center gap-2 transition-colors">
+                     <FileText className="w-4 h-4" /> Termos de Uso
+                 </button>
              )}
 
              {!isEditing && (

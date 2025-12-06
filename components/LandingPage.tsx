@@ -1,8 +1,9 @@
 
 import React, { useEffect, useState } from 'react';
-import { Sparkles, CheckCircle2, Zap, LayoutTemplate, Smartphone, ArrowRight, ShieldCheck, MessageCircle, Star, Quote, XCircle, Lock } from 'lucide-react';
+import { Sparkles, CheckCircle2, Zap, LayoutTemplate, Smartphone, ArrowRight, ShieldCheck, MessageCircle, Star, Quote, XCircle, Lock, FileText } from 'lucide-react';
 import { Button } from './Button';
 import { storageService } from '../services/storageService';
+import { TermsModal } from './TermsModal';
 
 interface LandingPageProps {
   onStart: () => void;
@@ -12,6 +13,7 @@ interface LandingPageProps {
 export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) => {
   
   const [whatsappUrl, setWhatsappUrl] = useState('');
+  const [showTerms, setShowTerms] = useState(false);
 
   useEffect(() => {
     const settings = storageService.getSettings();
@@ -22,6 +24,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans">
+      <TermsModal isOpen={showTerms} onClose={() => setShowTerms(false)} />
+
       {/* Navbar */}
       <nav className="fixed top-0 w-full bg-white/80 backdrop-blur-md border-b border-slate-200 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
@@ -288,8 +292,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
 
       {/* Footer */}
       <footer className="bg-white py-12 border-t border-slate-200 mt-12">
-        <div className="max-w-7xl mx-auto px-4 text-center text-slate-500 text-sm">
-          <p>&copy; 2024 PromoGen IA. Todos os direitos reservados.</p>
+        <div className="max-w-7xl mx-auto px-4 text-center">
+           <div className="flex justify-center items-center gap-6 mb-4">
+             <button onClick={() => setShowTerms(true)} className="text-sm text-slate-500 hover:text-brand-600 transition-colors flex items-center gap-1">
+                <FileText className="w-4 h-4" /> Termos de Uso
+             </button>
+           </div>
+          <p className="text-slate-500 text-sm">&copy; 2024 PromoGen IA. Todos os direitos reservados.</p>
         </div>
       </footer>
 

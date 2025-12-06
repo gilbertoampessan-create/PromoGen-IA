@@ -4,6 +4,7 @@ import { Button } from './Button';
 import { Sparkles, ArrowLeft, Mail, Lock, User, Shield, Crown, Coffee, Briefcase } from 'lucide-react';
 import { storageService } from '../services/storageService';
 import { BUSINESS_SEGMENTS, BusinessSegment } from '../types';
+import { TermsModal } from './TermsModal';
 
 interface AuthScreenProps {
   onSuccess: () => void;
@@ -20,6 +21,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, onBack }) => 
   });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [showTerms, setShowTerms] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,6 +53,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, onBack }) => 
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
+      <TermsModal isOpen={showTerms} onClose={() => setShowTerms(false)} />
+      
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 animate-in fade-in zoom-in duration-300">
         
         <button onClick={onBack} className="text-slate-400 hover:text-slate-600 mb-6 flex items-center gap-1 text-sm">
@@ -144,6 +148,10 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, onBack }) => 
           <Button type="submit" isLoading={loading} className="w-full py-3 shadow-lg shadow-brand-500/20">
             {isLogin ? 'Entrar' : 'Criar Conta'}
           </Button>
+
+          <p className="text-xs text-center text-slate-400 mt-2">
+            Ao continuar, você concorda com nossos <button type="button" onClick={() => setShowTerms(true)} className="text-brand-600 hover:underline">Termos de Uso</button>.
+          </p>
         </form>
         
         {/* --- TEST CREDENTIALS (DEV ONLY) --- */}
