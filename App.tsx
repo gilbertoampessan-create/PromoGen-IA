@@ -112,6 +112,7 @@ const App: React.FC = () => {
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
   const [isQuotaTriggered, setIsQuotaTriggered] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [isPrePaidRegistration, setIsPrePaidRegistration] = useState(false);
   
   // Notification State
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
@@ -123,16 +124,59 @@ const App: React.FC = () => {
     // Ensure test users are created
     storageService.initializeTestUsers();
     
+    // 1. Check for Payment Return URL (Mercado Pago)
+    const params = new URLSearchParams(window.location.search);
+    const paymentStatus = params.get('collection_status') || params.get('status');
+    const paymentId = params.get('payment_id');
+
+    // 2. Load User
     const currentUser = storageService.getCurrentUser();
-    if (currentUser) {
+    
+    // Handle Payment Success Logic
+    if (paymentStatus === 'approved') {
+        if (currentUser) {
+            // SCENARIO: User was logged in, went to pay, and came back
+            storageService.upgradeToPro(currentUser.id, 'pro');
+            // Log transaction
+            storageService.addFinancialTransaction({
+                id: paymentId || crypto.randomUUID(),
+                userId: currentUser.id,
+                userName: currentUser.name,
+                type: 'income',
+                category: 'Assinatura (Auto)',
+                description: 'Upgrade Automático MP',
+                amount: 97.00,
+                date: new Date().toISOString(),
+                status: 'paid',
+                planType: 'annual'
+            });
+            // Refresh user state
+            const updated = storageService.getCurrentUser();
+            setAuthState({
+                user: updated,
+                isAuthenticated: true,
+                view: updated?.isAdmin ? 'admin' : 'app'
+            });
+            alert("Parabéns! Seu plano PRO foi ativado com sucesso.");
+        } else {
+            // SCENARIO: New User paid via Landing Page
+            // Send them to Auth Screen with special "Pre-Paid" flag
+            setIsPrePaidRegistration(true);
+            setAuthState(prev => ({ ...prev, view: 'auth' }));
+        }
+        
+        // Clear URL params to avoid re-triggering on refresh
+        window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (currentUser) {
+      // Normal Login
       setAuthState({
         user: currentUser,
         isAuthenticated: true,
         view: currentUser.isAdmin ? 'admin' : 'app'
       });
-      // Load Notifications
       setNotifications(storageService.getUserNotifications(currentUser.id));
     }
+
   }, []);
 
   const handleLoginSuccess = () => {
@@ -155,6 +199,7 @@ const App: React.FC = () => {
       view: 'landing'
     });
     setShowProfileModal(false);
+    setIsPrePaidRegistration(false);
   };
 
   const checkQuotaAndOpenModal = () => {
@@ -463,7 +508,16 @@ const App: React.FC = () => {
   }
 
   if (authState.view === 'auth') {
-    return <AuthScreen onSuccess={handleLoginSuccess} onBack={() => setAuthState(prev => ({ ...prev, view: 'landing' }))} />;
+    return (
+      <AuthScreen 
+        onSuccess={handleLoginSuccess} 
+        onBack={() => {
+            setAuthState(prev => ({ ...prev, view: 'landing' }));
+            setIsPrePaidRegistration(false);
+        }}
+        isPrePaid={isPrePaidRegistration} 
+      />
+    );
   }
 
   if (authState.view === 'admin') {

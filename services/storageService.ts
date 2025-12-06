@@ -66,20 +66,29 @@ export const storageService = {
   },
 
   // --- Auth ---
-  register: (email: string, password: string, name: string, businessSegment: BusinessSegment): User => {
+  register: (email: string, password: string, name: string, businessSegment: BusinessSegment, initialPlan: PlanType = 'free'): User => {
     const users = JSON.parse(localStorage.getItem(USERS_KEY) || '[]');
     
     if (users.find((u: any) => u.email === email)) {
       throw new Error('E-mail já cadastrado.');
     }
 
+    // Define expiry if PRO
+    let subscriptionExpiry: string | undefined = undefined;
+    if (initialPlan === 'pro') {
+        const date = new Date();
+        date.setFullYear(date.getFullYear() + 1);
+        subscriptionExpiry = date.toISOString();
+    }
+
     const newUser: User = {
       id: crypto.randomUUID(),
       email,
       name,
-      plan: 'free', // Default plan
+      plan: initialPlan, 
       businessSegment,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      subscriptionExpiry
     };
 
     // Save user data (simulating DB with password - in real app, hash password)

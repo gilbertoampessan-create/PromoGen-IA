@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { Button } from './Button';
-import { Sparkles, ArrowLeft, Mail, Lock, User, Shield, Crown, Coffee, Briefcase } from 'lucide-react';
+import { Sparkles, ArrowLeft, Mail, Lock, User, Shield, Crown, Coffee, Briefcase, CheckCircle2 } from 'lucide-react';
 import { storageService } from '../services/storageService';
 import { BUSINESS_SEGMENTS, BusinessSegment } from '../types';
 import { TermsModal } from './TermsModal';
@@ -9,10 +9,11 @@ import { TermsModal } from './TermsModal';
 interface AuthScreenProps {
   onSuccess: () => void;
   onBack: () => void;
+  isPrePaid?: boolean;
 }
 
-export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, onBack }) => {
-  const [isLogin, setIsLogin] = useState(true);
+export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, onBack, isPrePaid = false }) => {
+  const [isLogin, setIsLogin] = useState(!isPrePaid);
   const [formData, setFormData] = useState({ 
     name: '', 
     email: '', 
@@ -36,7 +37,11 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, onBack }) => 
         storageService.login(formData.email, formData.password);
       } else {
         if (!formData.name) throw new Error("Nome é obrigatório");
-        storageService.register(formData.email, formData.password, formData.name, formData.businessSegment);
+        
+        // Se isPrePaid for true, passa 'pro' como plano inicial
+        const initialPlan = isPrePaid ? 'pro' : 'free';
+        
+        storageService.register(formData.email, formData.password, formData.name, formData.businessSegment, initialPlan);
       }
       onSuccess();
     } catch (err: any) {
@@ -57,20 +62,34 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, onBack }) => 
       
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 animate-in fade-in zoom-in duration-300">
         
-        <button onClick={onBack} className="text-slate-400 hover:text-slate-600 mb-6 flex items-center gap-1 text-sm">
-          <ArrowLeft className="w-4 h-4" /> Voltar
-        </button>
+        {!isPrePaid && (
+            <button onClick={onBack} className="text-slate-400 hover:text-slate-600 mb-6 flex items-center gap-1 text-sm">
+            <ArrowLeft className="w-4 h-4" /> Voltar
+            </button>
+        )}
 
         <div className="text-center mb-8">
-          <div className="w-12 h-12 bg-brand-100 text-brand-600 rounded-xl flex items-center justify-center mx-auto mb-4">
-            <Sparkles className="w-6 h-6 fill-current" />
-          </div>
-          <h2 className="text-2xl font-bold text-slate-900">
-            {isLogin ? 'Bem-vindo de volta' : 'Crie sua conta Grátis'}
-          </h2>
-          <p className="text-slate-500 text-sm mt-2">
-            {isLogin ? 'Entre para continuar criando.' : 'Comece a gerar ofertas com IA em segundos.'}
-          </p>
+          {isPrePaid ? (
+             <div className="bg-green-50 border border-green-100 rounded-xl p-4 mb-4">
+                 <div className="w-12 h-12 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-2 animate-bounce">
+                    <CheckCircle2 className="w-6 h-6" />
+                 </div>
+                 <h2 className="text-lg font-bold text-green-800">Pagamento Confirmado!</h2>
+                 <p className="text-green-700 text-sm">Crie sua conta abaixo para ativar seu acesso <span className="font-bold">PRO Ilimitado</span>.</p>
+             </div>
+          ) : (
+            <>
+                <div className="w-12 h-12 bg-brand-100 text-brand-600 rounded-xl flex items-center justify-center mx-auto mb-4">
+                    <Sparkles className="w-6 h-6 fill-current" />
+                </div>
+                <h2 className="text-2xl font-bold text-slate-900">
+                    {isLogin ? 'Bem-vindo de volta' : 'Crie sua conta Grátis'}
+                </h2>
+                <p className="text-slate-500 text-sm mt-2">
+                    {isLogin ? 'Entre para continuar criando.' : 'Comece a gerar ofertas com IA em segundos.'}
+                </p>
+            </>
+          )}
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -146,7 +165,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, onBack }) => 
           )}
 
           <Button type="submit" isLoading={loading} className="w-full py-3 shadow-lg shadow-brand-500/20">
-            {isLogin ? 'Entrar' : 'Criar Conta'}
+            {isLogin ? 'Entrar' : isPrePaid ? 'Ativar Conta PRO' : 'Criar Conta'}
           </Button>
 
           <p className="text-xs text-center text-slate-400 mt-2">
@@ -154,8 +173,8 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, onBack }) => 
           </p>
         </form>
         
-        {/* --- TEST CREDENTIALS (DEV ONLY) --- */}
-        {isLogin && (
+        {/* --- TEST CREDENTIALS (DEV ONLY) - Hide on prepaid flow --- */}
+        {isLogin && !isPrePaid && (
           <div className="mt-8 pt-6 border-t border-slate-100">
              <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 text-center">Ambiente de Teste (Clique para Preencher)</p>
              <div className="grid grid-cols-3 gap-2">
@@ -181,17 +200,27 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ onSuccess, onBack }) => 
           </div>
         )}
 
-        <div className="mt-6 text-center pt-6 border-t border-slate-100">
-          <p className="text-sm text-slate-600">
-            {isLogin ? 'Não tem uma conta?' : 'Já tem uma conta?'}
-            <button 
-              onClick={() => setIsLogin(!isLogin)} 
-              className="ml-1 text-brand-600 font-bold hover:underline"
-            >
-              {isLogin ? 'Cadastre-se' : 'Faça login'}
-            </button>
-          </p>
-        </div>
+        {!isPrePaid && (
+            <div className="mt-6 text-center pt-6 border-t border-slate-100">
+            <p className="text-sm text-slate-600">
+                {isLogin ? 'Não tem uma conta?' : 'Já tem uma conta?'}
+                <button 
+                onClick={() => setIsLogin(!isLogin)} 
+                className="ml-1 text-brand-600 font-bold hover:underline"
+                >
+                {isLogin ? 'Cadastre-se' : 'Faça login'}
+                </button>
+            </p>
+            </div>
+        )}
+
+        {isPrePaid && isLogin && (
+            <div className="mt-4 text-center">
+                 <button onClick={() => setIsLogin(false)} className="text-xs text-brand-600 hover:underline">
+                    Não tenho conta, quero cadastrar
+                 </button>
+            </div>
+        )}
       </div>
     </div>
   );
