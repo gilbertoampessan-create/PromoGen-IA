@@ -4,7 +4,7 @@ import { User, AdminStats, SystemSettings, PlanType, Campaign, BUSINESS_SEGMENTS
 import { storageService } from '../services/storageService';
 import { checkConnection } from '../services/geminiService';
 import { Button } from './Button';
-import { Users, DollarSign, Activity, Trash2, Shield, LogOut, Search, CreditCard, Settings, Link, Save, Check, Key, Phone, MessageSquare, Calendar, Clock, X, Coffee, Crown, Edit, Briefcase, TrendingUp, Send, Target, FileText, ArrowUpRight, ArrowDownRight, Plus, Minus, User as UserIcon, AlertCircle, Zap, RefreshCw, ExternalLink } from 'lucide-react';
+import { Users, DollarSign, Activity, Trash2, Shield, LogOut, Search, CreditCard, Settings, Link, Save, Check, Key, Phone, MessageSquare, Calendar, Clock, X, Coffee, Crown, Edit, Briefcase, TrendingUp, Send, Target, FileText, ArrowUpRight, ArrowDownRight, Plus, Minus, User as UserIcon, AlertCircle, Zap, RefreshCw, ExternalLink, RefreshCcw } from 'lucide-react';
 
 interface AdminDashboardProps {
   onLogout: () => void;
@@ -725,22 +725,30 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
                             </div>
                         </div>
 
-                        <div className="flex items-center justify-between gap-3">
-                             <div className="text-xs text-slate-400">
-                                {isApiKeyConfigured ? 'Status: Configurado via Ambiente (.env)' : 'Ação Necessária: Adicione API_KEY no arquivo .env'}
+                        {!isApiKeyConfigured ? (
+                             <div className="mt-4 p-3 bg-red-50 border border-red-100 rounded-lg text-xs text-red-800 space-y-2">
+                                <p><strong>1. Ação Necessária:</strong> Adicione <code>API_KEY</code> nas Configurações da Vercel (Environment Variables).</p>
+                                <p><strong>2. Importante:</strong> Após adicionar, vá na aba <strong>Deployments</strong> na Vercel, clique nos 3 pontos (...) do último deploy e selecione <strong>Redeploy</strong> para a chave entrar em vigor.</p>
                              </div>
-                             <Button 
-                                type="button" 
-                                onClick={handleTestConnection}
-                                disabled={connectionStatus === 'testing' || !isApiKeyConfigured}
-                                className={`text-xs py-2 px-4 h-auto ${connectionStatus === 'success' ? 'bg-green-600 hover:bg-green-700' : connectionStatus === 'failed' ? 'bg-red-600 hover:bg-red-700' : 'bg-slate-800 hover:bg-slate-900'}`}
-                             >
-                                 {connectionStatus === 'testing' && <RefreshCw className="w-3 h-3 mr-1 animate-spin" />}
-                                 {connectionStatus === 'success' && <Check className="w-3 h-3 mr-1" />}
-                                 {connectionStatus === 'failed' && <X className="w-3 h-3 mr-1" />}
-                                 {connectionStatus === 'idle' ? 'Testar Conexão' : connectionStatus === 'testing' ? 'Verificando...' : connectionStatus === 'success' ? 'Conexão OK' : 'Falha na Conexão'}
-                             </Button>
-                        </div>
+                        ) : (
+                            <div className="flex items-center justify-between gap-3">
+                                 <div className="text-xs text-slate-400">
+                                    Status: Configurado via Ambiente (.env)
+                                 </div>
+                                 <Button 
+                                    type="button" 
+                                    onClick={handleTestConnection}
+                                    disabled={connectionStatus === 'testing'}
+                                    className={`text-xs py-2 px-4 h-auto ${connectionStatus === 'success' ? 'bg-green-600 hover:bg-green-700' : connectionStatus === 'failed' ? 'bg-red-600 hover:bg-red-700' : 'bg-slate-800 hover:bg-slate-900'}`}
+                                 >
+                                     {connectionStatus === 'testing' && <RefreshCw className="w-3 h-3 mr-1 animate-spin" />}
+                                     {connectionStatus === 'success' && <Check className="w-3 h-3 mr-1" />}
+                                     {connectionStatus === 'failed' && <X className="w-3 h-3 mr-1" />}
+                                     {connectionStatus === 'idle' ? 'Testar Conexão' : connectionStatus === 'testing' ? 'Verificando...' : connectionStatus === 'success' ? 'Conexão OK' : 'Falha na Conexão'}
+                                 </Button>
+                            </div>
+                        )}
+                        
                         {connectionStatus === 'success' && (
                             <p className="text-[10px] text-green-600 font-bold mt-2 text-right animate-in fade-in">
                                 Sistema operacional e pronto para gerar imagens!
