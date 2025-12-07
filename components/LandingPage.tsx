@@ -10,17 +10,18 @@ interface LandingPageProps {
   onLogin: () => void;
 }
 
+// Updated Prompts with Specific Products for better visualization
 const STYLE_EXAMPLES = [
-  { name: 'Minimalista', prompt: 'minimalist clean vast white space soft shadows studio', color: 'from-gray-900', sub: 'Limpo e Moderno' },
-  { name: 'Luxo / Gold', prompt: 'luxury elegant gold and black textures marble cinematic bokeh', color: 'from-yellow-600', sub: 'Joias e Premium' },
-  { name: 'Gourmet', prompt: 'delicious gourmet food photography steam fresh ingredients warm', color: 'from-orange-600', sub: 'Restaurantes' },
-  { name: 'Tech / Neon', prompt: 'futuristic cyberpunk neon lights blue and purple glow sleek', color: 'from-blue-600', sub: 'Eletrônicos e Games' },
-  { name: 'Orgânico', prompt: 'nature eco friendly green leaves sunlight wooden texture', color: 'from-green-600', sub: 'Produtos Naturais' },
-  { name: 'Rústico', prompt: 'rustic vintage aged wood background warm tones cozy atmosphere', color: 'from-amber-700', sub: 'Cafés e Artesanato' },
-  { name: 'Pop Art', prompt: 'pop art vibrant colors halftone patterns comic book style', color: 'from-pink-500', sub: 'Moda Jovem' },
-  { name: 'Corporativo', prompt: 'corporate professional office background glass and steel blue', color: 'from-slate-700', sub: 'Serviços e B2B' },
-  { name: 'Fitness', prompt: 'fitness gym atmosphere dynamic energy sweat dark background', color: 'from-red-600', sub: 'Suplementos e Gym' },
-  { name: 'Infantil', prompt: 'kids playful pastel colors balloons toys background soft lighting', color: 'from-purple-500', sub: 'Brinquedos e Roupas' },
+  { name: 'Minimalista', prompt: 'white wireless headphones product photography minimalist clean vast white space soft shadows studio lighting high quality', color: 'from-gray-900', sub: 'Eletrônicos & Design' },
+  { name: 'Luxo / Gold', prompt: 'luxury golden perfume bottle on black marble podium elegant gold textures cinematic lighting bokeh premium product', color: 'from-yellow-600', sub: 'Joias & Perfumes' },
+  { name: 'Gourmet', prompt: 'delicious gourmet burger with melting cheese steam rising fresh ingredients warm lighting wooden table close up food photography', color: 'from-orange-600', sub: 'Delivery & Restaurantes' },
+  { name: 'Tech / Neon', prompt: 'futuristic gaming mouse neon blue and purple lights cyberpunk background glowing smoke high tech sleek product', color: 'from-blue-600', sub: 'Gamers & Informática' },
+  { name: 'Orgânico', prompt: 'green herbal skincare bottle on stone podium nature leaves sunlight moss eco friendly product photography fresh', color: 'from-green-600', sub: 'Cosméticos Naturais' },
+  { name: 'Rústico', prompt: 'bag of roasted coffee beans on rustic aged wood table vintage atmosphere warm lighting steam aroma close up', color: 'from-amber-700', sub: 'Cafés & Artesanato' },
+  { name: 'Pop Art', prompt: 'colorful sneakers floating pop art style vibrant yellow and pink background halftone patterns comic book style high contrast', color: 'from-pink-500', sub: 'Moda Jovem & Streetwear' },
+  { name: 'Corporativo', prompt: 'modern laptop open on glass desk office background blurred skyscrapers professional business atmosphere blue tones', color: 'from-slate-700', sub: 'Serviços & B2B' },
+  { name: 'Fitness', prompt: 'black protein shaker bottle with water droplets dramatic gym lighting red backlight smoke intense workout atmosphere', color: 'from-red-600', sub: 'Suplementos & Academia' },
+  { name: 'Infantil', prompt: 'cute plush teddy bear toy pastel colors balloons background soft lighting happy 3d render style playful', color: 'from-purple-500', sub: 'Brinquedos & Roupas' },
 ];
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) => {
@@ -250,9 +251,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
                                 className="flex-shrink-0 px-2"
                                 style={{ width: `${100 / itemsPerView}%` }}
                             >
-                                <div className="group relative aspect-square rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 bg-slate-100">
+                                <div className="group relative aspect-square rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 bg-slate-200">
                                     <img 
-                                        src={`https://pollinations.ai/p/${encodeURIComponent(style.prompt)}?width=600&height=600&nologo=true&seed=${index + 42}`} 
+                                        src={`https://image.pollinations.ai/prompt/${encodeURIComponent(style.prompt)}?width=800&height=800&nologo=true&seed=${index + 100}&model=flux`} 
                                         alt={`Estilo ${style.name}`} 
                                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                                         loading="lazy"
