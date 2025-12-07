@@ -155,8 +155,9 @@ export const PreviewCanvas = forwardRef<HTMLDivElement, PreviewCanvasProps>(({ d
   };
 
   // Placeholder background if none generated
+  // Note: We wrap the backgroundImage URL in quotes to handle base64 strings safely
   const backgroundStyle = backgroundImage 
-    ? { backgroundImage: `url(${backgroundImage})` }
+    ? { backgroundImage: `url("${backgroundImage}")` }
     : { backgroundImage: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' };
 
   return (

@@ -10,114 +10,120 @@ interface LandingPageProps {
   onLogin: () => void;
 }
 
-// --- AUDITORIA DE IMAGENS ---
-// Fonte: Unsplash (Licença Comercial Gratuita)
-// Tipo: Fotografia de Produto (Sem rostos reconhecíveis para evitar problemas de Direito de Imagem)
+// --- AUDITORIA DE IMAGENS & ESTILO ---
+// Seleção Curada: Imagens com alta faixa dinâmica (HDR), profundidade de campo e iluminação de estúdio.
 const STYLE_EXAMPLES = [
   { 
       name: 'Minimalista', 
       prompt: 'Minimalist product white background',
-      // Unsplash ID: 1523275335684-37898b6baf30 (Relógio em fundo neutro)
-      image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80', 
-      color: 'from-slate-400', 
+      // Tênis branco com sombra suave e iluminação difusa
+      image: 'https://images.unsplash.com/photo-1600185365926-3a2ce3cdb9eb?auto=format&fit=crop&w=800&q=80', 
+      color: 'from-slate-500', 
       sub: 'Clean & Moderno' 
   },
   { 
       name: 'Luxo', 
       prompt: 'Luxury gold perfume bottle',
-      // Unsplash ID: 1541963463532-d68292c34b19 (Perfume com tons dourados)
-      image: 'https://images.unsplash.com/photo-1541963463532-d68292c34b19?auto=format&fit=crop&w=800&q=80', 
-      color: 'from-yellow-600', 
+      // Garrafa com reflexos dourados e fundo escuro dramático
+      image: 'https://images.unsplash.com/photo-1615655406736-b37c4fabf923?auto=format&fit=crop&w=800&q=80', 
+      color: 'from-yellow-700', 
       sub: 'Gold & Premium' 
   },
   { 
       name: 'Gourmet', 
       prompt: 'Delicious burger food photography',
-      // Unsplash ID: 1568901346375-23c9450c58cd (Hambúrguer estúdio)
-      image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=800&q=80', 
-      color: 'from-orange-600', 
-      sub: 'Restaurantes' 
+      // Prato com iluminação lateral forte, fumaça/vapor sugerido, cores ricas
+      image: 'https://images.unsplash.com/photo-1551782450-a2132b4ba21d?auto=format&fit=crop&w=800&q=80', 
+      color: 'from-orange-700', 
+      sub: 'Alta Gastronomia' 
   },
   { 
       name: 'Tech / Neon', 
       prompt: 'Cyberpunk gaming setup',
-      // Unsplash ID: 1550745165-9bc0b252726f (Setup Gaming - Foco em objetos)
+      // Setup com luzes neon azul/roxo, reflexos em vidro
       image: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=800&q=80', 
       color: 'from-purple-600', 
-      sub: 'Eletrônicos' 
+      sub: 'Futurista & Gamer' 
   },
   { 
       name: 'Orgânico', 
       prompt: 'Natural spa products leaves',
-      // Unsplash ID: 1540555700478-4be289fbecef (Produtos de Spa)
-      image: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=800&q=80', 
-      color: 'from-green-600', 
-      sub: 'Natureza & Saúde' 
+      // Produto em pedra com folhas e luz solar filtrada (Gobo)
+      image: 'https://images.unsplash.com/photo-1615397349754-cfa2066a298e?auto=format&fit=crop&w=800&q=80', 
+      color: 'from-green-700', 
+      sub: 'Natureza & Frescor' 
   },
   { 
       name: 'Rústico', 
       prompt: 'Coffee on wood table',
-      // Unsplash ID: 1497935586351-b67a49e012bf (Café em madeira)
-      image: 'https://images.unsplash.com/photo-1497935586351-b67a49e012bf?auto=format&fit=crop&w=800&q=80', 
-      color: 'from-amber-700', 
-      sub: 'Café & Artesanal' 
+      // Textura de madeira escura, iluminação quente (Tungstênio)
+      image: 'https://images.unsplash.com/photo-1514432324607-a09d9b4aefdd?auto=format&fit=crop&w=800&q=80', 
+      color: 'from-amber-800', 
+      sub: 'Artesanal & Cozy' 
   },
   { 
       name: 'Pop Art', 
       prompt: 'Vibrant headphones color background',
-      // Unsplash ID: 1515955656352-a1fa3ffcd111 (Fones coloridos)
-      image: 'https://images.unsplash.com/photo-1515955656352-a1fa3ffcd111?auto=format&fit=crop&w=800&q=80', 
-      color: 'from-pink-500', 
-      sub: 'Vibrante & Jovem' 
+      // Cores sólidas, sombras duras, alto contraste
+      image: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=800&q=80', 
+      color: 'from-pink-600', 
+      sub: 'Vibrante & Ousado' 
   },
   { 
       name: 'Corporativo', 
       prompt: 'Modern office desk laptop',
-      // Unsplash ID: 1497215728101-856f4ea42174 (Mesa de escritório - Sem pessoas)
-      image: 'https://images.unsplash.com/photo-1497215728101-856f4ea42174?auto=format&fit=crop&w=800&q=80', 
-      color: 'from-blue-600', 
-      sub: 'Negócios & Serviços' 
+      // Vidro, aço, tons de azul frio, profundidade de escritório
+      image: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=800&q=80', 
+      color: 'from-blue-700', 
+      sub: 'Business & Trust' 
   },
   { 
       name: 'Fitness', 
       prompt: 'Gym weights dark background',
-      // Unsplash ID: 1534438327276-14e5300c3a48 (Pesos de academia - Sem pessoas)
-      image: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=800&q=80', 
-      color: 'from-red-600', 
-      sub: 'Academia & Força' 
+      // Luz de recorte (Rim light), suor/água, fundo preto
+      image: 'https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=800&q=80', 
+      color: 'from-red-700', 
+      sub: 'Energia & Força' 
   },
    { 
       name: 'Infantil', 
       prompt: 'Colorful toys kid room',
-      // Unsplash ID: 1566576912321-d58ddd7a6088 (Brinquedos)
-      image: 'https://images.unsplash.com/photo-1566576912321-d58ddd7a6088?auto=format&fit=crop&w=800&q=80', 
-      color: 'from-indigo-500', 
+      // Tons pastéis brilhantes, iluminação suave (Softbox), alegria
+      image: 'https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?auto=format&fit=crop&w=800&q=80', 
+      color: 'from-indigo-600', 
       sub: 'Kids & Diversão' 
   },
 ];
 
-// Card Visual Clean - Estilo Portfolio de Agência
+// Card Visual Refinado - Efeito de profundidade e Luz
 const StyleCard = ({ style }: { style: any }) => {
     return (
-        <div className="group relative aspect-[4/5] md:aspect-square rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 hover:-translate-y-1 bg-white border border-slate-100">
-            {/* Imagem */}
-            <img 
-                src={style.image} 
-                alt={`Estilo ${style.name} - Exemplo de fotografia de produto`} 
-                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                loading="lazy"
-            />
+        <div className="group relative aspect-[3/4] rounded-3xl overflow-hidden cursor-pointer transition-all duration-500 hover:-translate-y-3 hover:shadow-[0_20px_50px_-12px_rgba(0,0,0,0.5)] shadow-lg border border-slate-100">
+            {/* Imagem com Zoom Suave */}
+            <div className="absolute inset-0 overflow-hidden rounded-3xl">
+                <img 
+                    src={style.image} 
+                    alt={`Estilo ${style.name}`} 
+                    className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-110 group-hover:rotate-1"
+                    loading="lazy"
+                />
+            </div>
             
-            {/* Gradiente Overlay (Mais suave no light mode) */}
-            <div className={`absolute inset-0 bg-gradient-to-t ${style.color} via-transparent to-transparent opacity-80 transition-opacity duration-300`}></div>
+            {/* Camada de Iluminação (Vignette + Cor da Marca) */}
+            <div className={`absolute inset-0 bg-gradient-to-t ${style.color} via-transparent to-black/10 opacity-60 group-hover:opacity-70 transition-opacity duration-500 mix-blend-multiply`}></div>
             
-            {/* Conteúdo */}
-            <div className="absolute bottom-0 left-0 right-0 p-5 z-20 text-white">
-                <div className="flex items-center gap-2 mb-1">
-                    <span className="font-bold text-xl tracking-tight drop-shadow-md">{style.name}</span>
-                </div>
-                <div className="w-8 h-1 bg-white/70 rounded-full mb-2 group-hover:w-full transition-all duration-500"></div>
-                <span className="text-white/90 text-xs font-semibold uppercase tracking-wider drop-shadow-sm">{style.sub}</span>
+            {/* Camada de Brilho Superior (Glass reflection effect) */}
+            <div className="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent opacity-0 group-hover:opacity-30 transition-opacity duration-500 pointer-events-none"></div>
+
+            {/* Conteúdo Flutuante */}
+            <div className="absolute bottom-0 left-0 right-0 p-6 z-20 translate-y-2 group-hover:translate-y-0 transition-transform duration-500">
+                {/* Linha decorativa */}
+                <div className="w-12 h-1 bg-white/80 rounded-full mb-3 shadow-[0_0_10px_rgba(255,255,255,0.5)] group-hover:w-20 transition-all duration-500"></div>
+                
+                <h3 className="font-bold text-2xl text-white tracking-tight drop-shadow-md mb-1">{style.name}</h3>
+                <p className="text-white/90 text-xs font-semibold uppercase tracking-wider flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-500 delay-75">
+                   <Sparkles className="w-3 h-3 text-yellow-300" /> {style.sub}
+                </p>
             </div>
         </div>
     );
@@ -244,36 +250,41 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
       </section>
 
       {/* Styles Carousel (Light Gray Background) */}
-      <section className="py-20 bg-slate-50 relative border-y border-slate-100">
+      <section className="py-20 bg-slate-50 relative border-y border-slate-100 overflow-hidden">
+        {/* Efeito de luz de fundo */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-full bg-gradient-to-r from-transparent via-white/50 to-transparent pointer-events-none z-0"></div>
+
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-            <div className="text-center mb-12">
-                <h2 className="text-3xl font-bold text-slate-900 mb-2">Portfolio da Agência</h2>
-                <p className="text-slate-500">Nossa IA domina todos os estilos visuais que sua marca precisa.</p>
+            <div className="text-center mb-16">
+                <h2 className="text-4xl font-extrabold text-slate-900 mb-4 tracking-tight">Portfolio da Agência</h2>
+                <p className="text-slate-500 text-lg max-w-2xl mx-auto">
+                    Nossa IA não apenas cria imagens; ela entende de luz, composição e emoção. Escolha o estilo que combina com sua marca.
+                </p>
             </div>
             
             <div className="relative group px-4 md:px-12">
                 <button 
                     onClick={prevSlide}
-                    className="absolute left-0 top-1/2 -translate-y-1/2 z-20 bg-white hover:bg-brand-50 text-slate-700 hover:text-brand-600 p-3 rounded-full shadow-lg border border-slate-100 transition-all hover:scale-110 group"
+                    className="absolute left-0 top-1/2 -translate-y-1/2 z-20 bg-white/80 backdrop-blur-sm hover:bg-white text-slate-700 hover:text-brand-600 p-4 rounded-full shadow-2xl border border-slate-100 transition-all hover:scale-110 group"
                 >
                     <ChevronLeft className="w-6 h-6 group-hover:-translate-x-1 transition-transform" />
                 </button>
                 <button 
                     onClick={nextSlide}
-                    className="absolute right-0 top-1/2 -translate-y-1/2 z-20 bg-white hover:bg-brand-50 text-slate-700 hover:text-brand-600 p-3 rounded-full shadow-lg border border-slate-100 transition-all hover:scale-110 group"
+                    className="absolute right-0 top-1/2 -translate-y-1/2 z-20 bg-white/80 backdrop-blur-sm hover:bg-white text-slate-700 hover:text-brand-600 p-4 rounded-full shadow-2xl border border-slate-100 transition-all hover:scale-110 group"
                 >
                     <ChevronRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
                 </button>
 
-                <div className="overflow-hidden p-4 -m-4">
+                <div className="overflow-hidden p-8 -m-8">
                     <div 
-                        className="flex transition-transform duration-700 cubic-bezier(0.4, 0, 0.2, 1)"
+                        className="flex transition-transform duration-700 cubic-bezier(0.25, 1, 0.5, 1)"
                         style={{ transform: `translateX(-${currentStyleIndex * (100 / itemsPerView)}%)` }}
                     >
                         {STYLE_EXAMPLES.map((style, index) => (
                             <div 
                                 key={index} 
-                                className="flex-shrink-0 px-3"
+                                className="flex-shrink-0 px-4"
                                 style={{ width: `${100 / itemsPerView}%` }}
                             >
                                 <StyleCard style={style} />

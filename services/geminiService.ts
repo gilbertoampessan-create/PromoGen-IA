@@ -25,9 +25,9 @@ const cleanText = (text: string): string => {
 const generatePollinationsImage = async (prompt: string, aspect: ImageAspect, seedOffset: number): Promise<string> => {
   const width = aspect === ImageAspect.PORTRAIT ? 768 : aspect === ImageAspect.LANDSCAPE ? 1280 : 1024;
   const height = aspect === ImageAspect.PORTRAIT ? 1344 : aspect === ImageAspect.LANDSCAPE ? 720 : 1024;
-  const encodedPrompt = encodeURIComponent(prompt);
+  const encodedPrompt = encodeURIComponent(prompt.substring(0, 500)); // Limit prompt length for URL
   const seed = Math.floor(Math.random() * 1000) + seedOffset;
-  return `https://pollinations.ai/p/${encodedPrompt}?width=${width}&height=${height}&nologo=true&seed=${seed}`;
+  return `https://pollinations.ai/p/${encodedPrompt}?width=${width}&height=${height}&nologo=true&seed=${seed}&model=flux`;
 };
 
 export const checkConnection = async (providedKey?: string): Promise<boolean> => {
@@ -97,7 +97,7 @@ export const generateBackgroundFromText = async (
   isolateProduct: boolean = false,
   brandColor: string | undefined = undefined,
   salesStrategy: string = 'benefit',
-  isFullCampaign: boolean = false // Novo parametro para controlar complexidade
+  isFullCampaign: boolean = false
 ): Promise<GenerationResult> => {
   
   if (!apiKey) throw new Error("API Key não fornecida");
@@ -156,12 +156,10 @@ export const generateBackgroundFromText = async (
     ? `IMPORTANT: Incorporate the brand color ${brandColor} into the lighting or background accents.`
     : "";
 
-  // Standard Quality Instruction
   const qualityInstruction = isPro 
     ? "Visual Quality: 8k resolution, photorealistic, professional photography, highly detailed, sharp focus."
     : "Visual Quality: High quality product photo, clear lighting, sharp details.";
 
-  // Define tasks based on whether it is a full campaign or just a quick post
   const tasksPrompt = isFullCampaign ? `
     TAREFA 4: PLANEJAMENTO SEMANAL (Valor Agregado)
     Crie 5 ideias de posts para o usuário postar nos dias seguintes para vender este mesmo produto.
@@ -243,11 +241,12 @@ export const generateBackgroundFromText = async (
     
     const parts: any[] = [{ text: systemPrompt }];
     
+    // Handle image-to-text context for Remix mode
     if (referenceImage) {
       parts.push({
         inlineData: {
           mimeType: 'image/jpeg',
-          data: referenceImage.split(',')[1]
+          data: referenceImage.split(',')[1] // Ensure clean base64
         }
       });
       parts.push({ text: "Analise a imagem acima. O usuário quer RECRIAR esta imagem mantendo o objeto. Adapte o 'imagePrompt' para isso." });
@@ -264,17 +263,17 @@ export const generateBackgroundFromText = async (
       resultJson = JSON.parse(cleanText(textResponse.text || '{}'));
     } catch (e) {
       console.error("JSON Parse Error", e);
+      // Fallback content
       resultJson = {
         banner: { headline: "Oferta", subtext: offerText, highlight: highlightText },
         audit: { score: 50, strengths: ["Produto claro"], improvements: ["Seja mais específico"], verdict: "Oferta básica." },
         social: { caption: offerText, hashtags: ["#oferta"] },
         calendar: [],
         salesScripts: { approach: "", objection: "", closing: "" },
-        imagePrompt: "Simple background"
+        imagePrompt: `${offerText} product photography, ${styleKeywords}`
       };
     }
 
-    // Ensure structure exists even if AI hallucinates structure
     const content = resultJson.banner || { headline: "Oferta", subtext: offerText, highlight: highlightText };
     const audit = resultJson.audit || { score: 70, strengths: ["Boa intenção"], improvements: ["Melhorar clareza"], verdict: "Pode melhorar." };
     const socialPost = resultJson.social || { caption: offerText, hashtags: [] };
@@ -291,20 +290,20 @@ export const generateBackgroundFromText = async (
         [ImageAspect.LANDSCAPE]: '16:9'
       };
       
-      // CONSTRUCT PROMPT
-      const imagePrompt = `Professional commercial photography of ${offerText}. ${resultJson.imagePrompt}. ${styleKeywords}. ${isolationInstruction}. ${brandInstruction}. ${qualityInstruction}`;
+      const imagePrompt = `Professional commercial photography of ${offerText}. ${resultJson.imagePrompt || ''}. ${styleKeywords}. ${isolationInstruction}. ${brandInstruction}. ${qualityInstruction}`;
 
       const generateSingleImage = async (index: number): Promise<string | null> => {
         try {
           const imageParts: any[] = [];
+          
+          // Image-to-Image for Remix
           if (referenceImage) {
              imageParts.push({
                 inlineData: { mimeType: 'image/jpeg', data: referenceImage.split(',')[1] }
              });
-             imageParts.push({ text: `Variant ${index + 1}. ${imagePrompt}` });
-          } else {
-             imageParts.push({ text: `Variant ${index + 1}. ${imagePrompt}` });
           }
+          
+          imageParts.push({ text: `Variant ${index + 1}. ${imagePrompt}` });
 
           const imageResponse = await ai.models.generateContent({
             model: 'gemini-2.5-flash-image', 
@@ -312,12 +311,18 @@ export const generateBackgroundFromText = async (
             config: { imageConfig: { aspectRatio: ratioMap[aspect] as any } }
           });
 
+          // Check for valid image data in parts
           for (const part of imageResponse.candidates?.[0]?.content?.parts || []) {
-            if (part.inlineData) {
-              return `data:image/png;base64,${part.inlineData.data}`;
+            if (part.inlineData && part.inlineData.data) {
+              const mimeType = part.inlineData.mimeType || 'image/png';
+              return `data:${mimeType};base64,${part.inlineData.data}`;
             }
           }
-          return null;
+          
+          // If execution reaches here, no image was returned (likely text refusal)
+          console.warn(`Gemini Image Variant ${index} returned no image data. Fallback to Pollinations.`);
+          return await generatePollinationsImage(imagePrompt, aspect, index * 100);
+
         } catch (imgError: any) {
           console.warn(`Gemini Image Variant ${index} Error:`, imgError);
           return await generatePollinationsImage(imagePrompt, aspect, index * 100);
@@ -329,7 +334,7 @@ export const generateBackgroundFromText = async (
       generatedImages = results.filter((img): img is string => img !== null);
       
       if (generatedImages.length === 0) {
-        generatedImages.push(await generatePollinationsImage(imagePrompt || "abstract", aspect, 0));
+        generatedImages.push(await generatePollinationsImage(imagePrompt || "abstract", aspect, 999));
       }
 
     } else {
@@ -347,6 +352,7 @@ export const generateBackgroundFromText = async (
 
   } catch (error: any) {
     console.error("Critical Service Error:", error);
+    // Absolute fallback
     const fallbackImg = await generatePollinationsImage("abstract gradient background", aspect, 999);
     return {
       images: [fallbackImg],
