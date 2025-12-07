@@ -266,15 +266,20 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout }) => {
             <p className="text-xs text-slate-400 mt-1">Imagens geradas no total</p>
           </div>
 
-          <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-slate-500 text-xs font-bold uppercase tracking-wider">Custo Estimado API</h3>
-              <CreditCard className="w-5 h-5 text-red-500" />
+          <div className="bg-gradient-to-br from-slate-900 to-slate-800 p-6 rounded-xl shadow-md border border-slate-700 text-white relative overflow-hidden">
+            <div className="absolute top-0 right-0 p-4 opacity-10">
+                <TrendingUp className="w-12 h-12" />
             </div>
-            <p className="text-3xl font-extrabold text-slate-900">
-              $ {stats?.estimatedCost.toFixed(2)}
+            <div className="flex items-center justify-between mb-2 relative z-10">
+              <h3 className="text-slate-300 text-xs font-bold uppercase tracking-wider">Margem de Lucro Est.</h3>
+              <Crown className="w-5 h-5 text-yellow-400" />
+            </div>
+            <p className="text-3xl font-extrabold text-white relative z-10">
+              R$ {stats?.mrr.toFixed(2).replace('.', ',')}
             </p>
-            <p className="text-xs text-slate-400 mt-1">Estimativa de uso da Google AI</p>
+            <p className="text-[10px] text-green-300 mt-1 font-bold relative z-10 bg-green-900/30 w-fit px-2 py-0.5 rounded-full border border-green-800/50">
+               ~100% Margem (Modelo BYOK)
+            </p>
           </div>
         </div>
 

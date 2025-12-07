@@ -1,8 +1,8 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Sparkles, Download, LayoutTemplate, Palette, Wand2, ImagePlus, Type, AlignLeft, AlignCenter, AlignRight, Square, Smartphone, RectangleHorizontal, Upload, MessageSquarePlus, ImageIcon, ArrowUpToLine, ArrowDownToLine, FoldVertical, RefreshCw, Building2, Trash2, Crown, User as UserIcon, CheckCircle2, PencilLine, Diamond, Utensils, Cpu, Leaf, Eraser, MessageCircle, ALargeSmall, LogOut, Pipette, RotateCcw, Lock, Bell } from 'lucide-react';
+import { Sparkles, Download, LayoutTemplate, Palette, Wand2, ImagePlus, Type, AlignLeft, AlignCenter, AlignRight, Square, Smartphone, RectangleHorizontal, Upload, MessageSquarePlus, ImageIcon, ArrowUpToLine, ArrowDownToLine, FoldVertical, RefreshCw, Building2, Trash2, Crown, User as UserIcon, CheckCircle2, PencilLine, Diamond, Utensils, Cpu, Leaf, Eraser, MessageCircle, ALargeSmall, LogOut, Pipette, RotateCcw, Lock, Bell, Key, Lightbulb, Copy, Target, Award, ThumbsUp, AlertTriangle, CalendarRange, MessageSquare, Zap, Rocket, Video, Play, Loader2, Coffee, Briefcase, Dumbbell, Megaphone, Smile, Ban } from 'lucide-react';
 import { OfferData, GeneratedImageState, ImageAspect, GenerationMode, CompanyInfo, AuthState, BannerContent, PlanType, AppNotification } from './types';
-import { generateBackgroundFromText, regenerateCopy } from './services/geminiService';
+import { generateBackgroundFromText, regenerateCopy, generateMarketingVideo } from './services/geminiService';
 import { storageService } from './services/storageService';
 import { PreviewCanvas } from './components/PreviewCanvas';
 import { Button } from './components/Button';
@@ -188,6 +188,13 @@ const App: React.FC = () => {
         view: currentUser.isAdmin ? 'admin' : 'app'
       });
       setNotifications(storageService.getUserNotifications(currentUser.id));
+      
+      // Check for API Key immediately after login
+      const apiKey = storageService.getUserApiKey();
+      if (!apiKey && !currentUser.isAdmin) {
+          // Open profile modal after a short delay to let things render
+          setTimeout(() => setShowProfileModal(true), 500);
+      }
     }
   };
 
@@ -247,7 +254,8 @@ const App: React.FC = () => {
     customImagePrompt: '',
     offerStyle: 'custom',
     isolateProduct: false,
-    customColor: undefined
+    customColor: undefined,
+    salesStrategy: 'benefit' // Default
   });
 
   const [companyInfo, setCompanyInfo] = useState<CompanyInfo>({
@@ -267,8 +275,17 @@ const App: React.FC = () => {
     images: [],
     selectedIndex: 0,
     content: null,
+    audit: null,
+    socialPost: null,
+    calendar: null,
+    salesScripts: null,
+    videoUrl: null,
+    isVideoLoading: false,
     error: null
   });
+
+  // Active Tab for Results Panel
+  const [activeResultTab, setActiveResultTab] = useState<'visual' | 'calendar' | 'sales' | 'video'>('visual');
 
   const [isRegeneratingText, setIsRegeneratingText] = useState(false);
 
@@ -381,14 +398,37 @@ const App: React.FC = () => {
       case 'organic':
         update = { ...update, font: 'modern', textColor: 'green' } as any;
         break;
+      case 'rustic':
+        update = { ...update, font: 'classic', textColor: 'white' } as any;
+        break;
+      case 'pop':
+        update = { ...update, font: 'modern', textColor: 'yellow' } as any;
+        break;
+      case 'corporate':
+        update = { ...update, font: 'modern', textColor: 'white' } as any;
+        break;
+      case 'fitness':
+        update = { ...update, font: 'modern', textColor: 'red' } as any;
+        break;
+      case 'kids':
+        update = { ...update, font: 'handwritten', textColor: 'purple' } as any;
+        break;
     }
     setOfferData(prev => ({ ...prev, ...update }));
   };
 
-  const handleGenerate = async () => {
+  const handleGenerate = async (isFullCampaign: boolean) => {
     if (!authState.user) return;
 
-    // Check Quota
+    // 1. Check if user has API Key configured
+    const userApiKey = storageService.getUserApiKey();
+    if (!userApiKey && !authState.user.isAdmin) {
+        alert("Você precisa configurar sua Chave de API do Google Gemini antes de gerar imagens.");
+        setShowProfileModal(true);
+        return;
+    }
+
+    // 2. Check Quota
     if (!checkQuotaAndOpenModal()) return;
 
     if (!offerData.offerText) {
@@ -401,7 +441,8 @@ const App: React.FC = () => {
       return;
     }
 
-    setImageState({ isLoading: true, images: [], selectedIndex: 0, content: null, error: null });
+    setImageState({ isLoading: true, images: [], selectedIndex: 0, content: null, audit: null, socialPost: null, calendar: null, salesScripts: null, videoUrl: null, error: null });
+    setActiveResultTab('visual'); // Reset to visual tab
     
     try {
       const skipImageGeneration = mode === 'upload';
@@ -409,12 +450,13 @@ const App: React.FC = () => {
       const isPro = authState.user.plan === 'pro';
       
       // Determine which color to send to AI
-      // If user selected a custom color, use that. Otherwise use the first in palette.
       const colorToUse = offerData.textColor === 'custom' && offerData.customColor 
             ? offerData.customColor 
             : (companyInfo.brandPalette && companyInfo.brandPalette.length > 0 ? companyInfo.brandPalette[0] : undefined);
 
+      // Pass the API KEY to the service
       const result = await generateBackgroundFromText(
+        userApiKey || process.env.API_KEY || '', // Admin might rely on env
         offerData.offerText, 
         offerData.highlightText,
         offerData.aspect,
@@ -424,7 +466,9 @@ const App: React.FC = () => {
         isPro,
         offerData.offerStyle,
         offerData.isolateProduct,
-        colorToUse // Pass selected brand color to AI
+        colorToUse,
+        offerData.salesStrategy,
+        isFullCampaign // Pass the flag
       );
       
       // Increment Usage Count upon success
@@ -437,25 +481,81 @@ const App: React.FC = () => {
         images: finalImages,
         selectedIndex: 0,
         content: result.content,
+        audit: result.audit,
+        socialPost: result.socialPost,
+        calendar: result.calendar,
+        salesScripts: result.salesScripts,
+        videoUrl: null,
         error: null
       });
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      
+      // Check for common API errors
+      let errorMessage = 'Falha ao processar. Tente novamente.';
+      if (err.message && err.message.includes('API Key')) {
+          errorMessage = 'Chave de API inválida ou não configurada.';
+      } else if (err.message && err.message.includes('429')) {
+          errorMessage = 'Limite de uso da API do Google atingido. Tente novamente mais tarde.';
+      }
+
       setImageState({
         isLoading: false,
         images: [],
         selectedIndex: 0,
         content: null,
-        error: 'Falha ao processar. Tente novamente.'
+        audit: null,
+        socialPost: null,
+        calendar: null,
+        salesScripts: null,
+        videoUrl: null,
+        error: errorMessage
       });
     }
   };
 
+  const handleGenerateVideo = async () => {
+      // Prioritize Video Key, fallback to Main Key
+      const videoKey = storageService.getVideoApiKey() || storageService.getUserApiKey() || process.env.API_KEY || '';
+      
+      if (!videoKey) {
+          alert('Chave de API necessária para gerar vídeo. Adicione no seu perfil.');
+          setShowProfileModal(true);
+          return;
+      }
+
+      setImageState(prev => ({...prev, isVideoLoading: true, error: null}));
+      setActiveResultTab('video');
+
+      try {
+          // Construct prompt for video based on current offer state
+          const prompt = `Product advertisement: ${offerData.offerText}. Highlight: ${offerData.highlightText}. Style: ${offerData.offerStyle}. High quality commercial.`;
+          
+          const url = await generateMarketingVideo(videoKey, prompt, offerData.aspect);
+          setImageState(prev => ({...prev, videoUrl: url, isVideoLoading: false}));
+      } catch (err: any) {
+          console.error(err);
+          let msg = "Erro ao gerar vídeo.";
+          if (err.message.includes('403') || err.message.includes('permission')) {
+              msg = "A chave API precisa estar em um projeto com faturamento (billing) ativado para usar o Veo.";
+          }
+          setImageState(prev => ({...prev, isVideoLoading: false, error: msg}));
+      }
+  };
+
   const handleRegenerateText = async () => {
     if (!offerData.offerText) return;
+    
+    const userApiKey = storageService.getUserApiKey();
+    if (!userApiKey && !authState.user?.isAdmin) {
+        alert("Chave de API necessária.");
+        setShowProfileModal(true);
+        return;
+    }
+
     setIsRegeneratingText(true);
     try {
-        const newContent = await regenerateCopy(offerData.offerText, offerData.offerStyle || 'custom');
+        const newContent = await regenerateCopy(userApiKey || process.env.API_KEY || '', offerData.offerText, offerData.offerStyle || 'custom');
         setImageState(prev => ({ ...prev, content: newContent }));
     } catch (e) {
         console.error("Error regenerating text", e);
@@ -485,6 +585,17 @@ const App: React.FC = () => {
       console.error("Erro ao baixar:", err);
       alert("Erro ao processar o download da imagem.");
     }
+  };
+
+  const copyToClipboard = (text: string) => {
+      navigator.clipboard.writeText(text);
+      alert('Copiado para a área de transferência!');
+  };
+
+  const handleCopyCaption = () => {
+      if (!imageState.socialPost) return;
+      const fullText = `${imageState.socialPost.caption}\n\n${imageState.socialPost.hashtags.join(' ')}`;
+      copyToClipboard(fullText);
   };
 
   const colorOptions = [
@@ -527,6 +638,7 @@ const App: React.FC = () => {
   const isPro = authState.user?.plan === 'pro';
   const quota = authState.user ? storageService.checkQuota(authState.user.id) : { allowed: false, remaining: 0, used: 0 };
   const currentDisplayImage = imageState.images.length > 0 ? imageState.images[imageState.selectedIndex] : (mode === 'upload' ? uploadedImage : null);
+  const userHasApiKey = !!storageService.getUserApiKey();
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row relative">
@@ -580,17 +692,22 @@ const App: React.FC = () => {
           {/* User Profile & Notifications */}
           <div className="flex items-center gap-2">
             <div 
-                className="flex-1 flex items-center justify-between bg-slate-50 p-3 rounded-xl border border-slate-100 cursor-pointer hover:bg-slate-100 transition-colors group"
+                className="flex-1 flex items-center justify-between bg-slate-50 p-3 rounded-xl border border-slate-100 cursor-pointer hover:bg-slate-100 transition-colors group relative overflow-hidden"
                 onClick={() => setShowProfileModal(true)}
                 title="Gerenciar Conta"
             >
+                {!userHasApiKey && !authState.user?.isAdmin && (
+                   <div className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full animate-pulse border border-white"></div>
+                )}
                 <div className="flex items-center gap-2 overflow-hidden">
                     <div className="w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center text-slate-500 group-hover:bg-brand-100 group-hover:text-brand-600 transition-colors">
                         <UserIcon className="w-4 h-4" />
                     </div>
                     <div className="flex flex-col">
                         <span className="text-xs font-bold text-slate-700 truncate max-w-[100px]">{authState.user?.name}</span>
-                        <span className="text-[10px] text-slate-400 truncate">{isPro ? 'Ilimitado' : `${quota.used}/2 hoje`}</span>
+                        <span className="text-[10px] text-slate-400 truncate">
+                            {!userHasApiKey && !authState.user?.isAdmin ? 'Sem chave API' : isPro ? 'Ilimitado' : `${quota.used}/2 hoje`}
+                        </span>
                     </div>
                 </div>
             </div>
@@ -650,6 +767,16 @@ const App: React.FC = () => {
                 <LogOut className="w-5 h-5" />
             </button>
           </div>
+
+          {!userHasApiKey && !authState.user?.isAdmin && (
+               <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2 cursor-pointer hover:bg-red-100 transition-colors" onClick={() => setShowProfileModal(true)}>
+                   <Key className="w-5 h-5 text-red-600 shrink-0" />
+                   <div>
+                       <p className="text-xs font-bold text-red-800">Chave de API Necessária</p>
+                       <p className="text-[10px] text-red-600">Clique para configurar sua chave do Gemini.</p>
+                   </div>
+               </div>
+          )}
 
           {!isPro && (
              <button onClick={() => openSubscriptionManagement()} className="w-full mt-3 py-2 bg-gradient-to-r from-slate-900 to-slate-800 text-white text-xs font-bold rounded-lg shadow-md hover:opacity-90 transition-opacity flex items-center justify-center gap-2">
@@ -748,6 +875,17 @@ const App: React.FC = () => {
               </h3>
               <div className="grid grid-cols-2 gap-2">
                   <button 
+                    onClick={() => applyStyle('custom')}
+                    className={`p-2 rounded-lg text-[10px] font-medium border flex items-center gap-2 transition-all ${offerData.offerStyle === 'custom' ? 'bg-slate-800 text-white border-slate-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                    title="Sem estilo predefinido, usa apenas sua descrição"
+                  >
+                    <div className="w-4 h-4 rounded-full border border-current flex items-center justify-center">
+                        <Ban className="w-3 h-3 text-current" />
+                    </div>
+                    Livre / Descrição
+                  </button>
+
+                  <button 
                     onClick={() => applyStyle('minimal')}
                     className={`p-2 rounded-lg text-[10px] font-medium border flex items-center gap-2 transition-all ${offerData.offerStyle === 'minimal' ? 'bg-slate-800 text-white border-slate-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
                   >
@@ -776,6 +914,38 @@ const App: React.FC = () => {
                     className={`p-2 rounded-lg text-[10px] font-medium border flex items-center gap-2 transition-all ${offerData.offerStyle === 'organic' ? 'bg-green-700 text-white border-green-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
                   >
                     <Leaf className="w-3 h-3 text-green-200" /> Orgânico
+                  </button>
+                  
+                  {/* NEW STYLES */}
+                  <button 
+                    onClick={() => applyStyle('rustic')}
+                    className={`p-2 rounded-lg text-[10px] font-medium border flex items-center gap-2 transition-all ${offerData.offerStyle === 'rustic' ? 'bg-amber-800 text-amber-50 border-amber-800' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                  >
+                    <Coffee className="w-3 h-3 text-amber-300" /> Rústico
+                  </button>
+                  <button 
+                    onClick={() => applyStyle('pop')}
+                    className={`p-2 rounded-lg text-[10px] font-medium border flex items-center gap-2 transition-all ${offerData.offerStyle === 'pop' ? 'bg-pink-500 text-white border-pink-500' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                  >
+                    <Megaphone className="w-3 h-3 text-yellow-300" /> Pop Art
+                  </button>
+                  <button 
+                    onClick={() => applyStyle('corporate')}
+                    className={`p-2 rounded-lg text-[10px] font-medium border flex items-center gap-2 transition-all ${offerData.offerStyle === 'corporate' ? 'bg-slate-700 text-white border-slate-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                  >
+                    <Briefcase className="w-3 h-3 text-blue-200" /> Corporativo
+                  </button>
+                  <button 
+                    onClick={() => applyStyle('fitness')}
+                    className={`p-2 rounded-lg text-[10px] font-medium border flex items-center gap-2 transition-all ${offerData.offerStyle === 'fitness' ? 'bg-red-700 text-white border-red-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                  >
+                    <Dumbbell className="w-3 h-3 text-slate-200" /> Fitness
+                  </button>
+                  <button 
+                    onClick={() => applyStyle('kids')}
+                    className={`p-2 rounded-lg text-[10px] font-medium border flex items-center gap-2 transition-all ${offerData.offerStyle === 'kids' ? 'bg-purple-400 text-white border-purple-400' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}
+                  >
+                    <Smile className="w-3 h-3 text-yellow-200" /> Infantil
                   </button>
               </div>
               
@@ -822,6 +992,42 @@ const App: React.FC = () => {
               <label className="block text-xs font-bold text-slate-700 mb-1 text-brand-600">Destaque / Preço</label>
               <input type="text" name="highlightText" value={offerData.highlightText} onChange={handleInputChange} className="w-full px-4 py-3 border border-brand-200 bg-brand-50/50 rounded-xl focus:ring-2 focus:ring-brand-500 outline-none font-semibold text-brand-900 shadow-sm" placeholder='Ex: R$ 59,90' />
             </div>
+            
+            {/* Sales Strategy Selector */}
+             <div>
+                <label className="block text-xs font-bold text-slate-700 mb-2 flex items-center gap-1"><Target className="w-3 h-3" /> Estratégia de Venda</label>
+                <div className="grid grid-cols-2 gap-2">
+                    <button 
+                        onClick={() => setOfferData(prev => ({ ...prev, salesStrategy: 'benefit' }))} 
+                        className={`p-2 rounded-lg text-[10px] border text-left ${offerData.salesStrategy === 'benefit' ? 'bg-brand-50 border-brand-500 text-brand-700' : 'bg-white border-slate-200 text-slate-600'}`}
+                    >
+                        <span className="font-bold block">Benefício</span>
+                        Foca no ganho do cliente
+                    </button>
+                    <button 
+                        onClick={() => setOfferData(prev => ({ ...prev, salesStrategy: 'urgency' }))} 
+                        className={`p-2 rounded-lg text-[10px] border text-left ${offerData.salesStrategy === 'urgency' ? 'bg-red-50 border-red-500 text-red-700' : 'bg-white border-slate-200 text-slate-600'}`}
+                    >
+                        <span className="font-bold block">Escassez / Urgência</span>
+                        Foca no "Só hoje"
+                    </button>
+                    <button 
+                        onClick={() => setOfferData(prev => ({ ...prev, salesStrategy: 'exclusive' }))} 
+                        className={`p-2 rounded-lg text-[10px] border text-left ${offerData.salesStrategy === 'exclusive' ? 'bg-purple-50 border-purple-500 text-purple-700' : 'bg-white border-slate-200 text-slate-600'}`}
+                    >
+                        <span className="font-bold block">Exclusividade</span>
+                        Foca no Premium
+                    </button>
+                     <button 
+                        onClick={() => setOfferData(prev => ({ ...prev, salesStrategy: 'social_proof' }))} 
+                        className={`p-2 rounded-lg text-[10px] border text-left ${offerData.salesStrategy === 'social_proof' ? 'bg-green-50 border-green-500 text-green-700' : 'bg-white border-slate-200 text-slate-600'}`}
+                    >
+                        <span className="font-bold block">Prova Social</span>
+                        Foca em "Mais Vendido"
+                    </button>
+                </div>
+            </div>
+
           </div>
 
           <hr className="border-slate-100" />
@@ -877,14 +1083,26 @@ const App: React.FC = () => {
               </div>
             </div>
 
-            <Button 
-              onClick={handleGenerate} 
-              isLoading={imageState.isLoading} 
-              className={`w-full py-4 text-lg shadow-lg hover:scale-[1.02] active:scale-[0.98] ${mode === 'remix' ? 'bg-purple-600 hover:bg-purple-700 shadow-purple-500/30' : ''}`}
-              icon={<Sparkles className="w-5 h-5 fill-current" />}
-            >
-              {imageState.isLoading ? 'Gerando 4 opções...' : mode === 'remix' ? 'Recriar com IA' : 'Gerar Oferta'}
-            </Button>
+            {/* ACTION BUTTONS: SPLIT */}
+            <div className="grid grid-cols-2 gap-3">
+                <Button 
+                    onClick={() => handleGenerate(false)} 
+                    isLoading={imageState.isLoading} 
+                    className={`py-4 text-sm shadow-md bg-slate-800 hover:bg-slate-900 border-none ${mode === 'remix' ? 'hidden' : ''}`}
+                    icon={<Zap className="w-4 h-4 fill-yellow-400 text-yellow-400" />}
+                >
+                    {imageState.isLoading ? 'Gerando...' : 'Post Rápido'}
+                </Button>
+                
+                <Button 
+                    onClick={() => handleGenerate(true)} 
+                    isLoading={imageState.isLoading} 
+                    className={`py-4 text-sm shadow-lg hover:scale-[1.02] active:scale-[0.98] ${mode === 'remix' ? 'col-span-2' : ''}`}
+                    icon={mode === 'remix' ? <RefreshCw className="w-4 h-4" /> : <Rocket className="w-4 h-4" />}
+                >
+                    {imageState.isLoading ? 'Agência IA Trabalhando...' : mode === 'remix' ? 'Recriar com IA' : 'Campanha 360º'}
+                </Button>
+            </div>
 
             {imageState.error && <div className="p-3 bg-red-50 text-red-600 text-xs rounded-lg border border-red-100">{imageState.error}</div>}
 
@@ -997,88 +1215,313 @@ const App: React.FC = () => {
       <div className="flex-1 bg-slate-100 p-4 md:p-12 flex flex-col items-center justify-center overflow-hidden relative overflow-y-auto">
         <div className="absolute inset-0 opacity-[0.03]" style={{ backgroundImage: 'radial-gradient(#0ea5e9 1px, transparent 1px)', backgroundSize: '24px 24px' }}></div>
         <div className="relative w-full max-w-4xl z-10 flex flex-col items-center">
+          
           <div className="w-full max-w-2xl mb-6 flex flex-col sm:flex-row justify-between items-end sm:items-end gap-4">
             <div>
-              <h2 className="text-xl font-bold text-slate-800">Resultado Visual</h2>
-              <p className="text-slate-500 text-sm">{imageState.content ? "Texto otimizado em PT-BR" : "Pré-visualização"}</p>
+              <h2 className="text-xl font-bold text-slate-800">Resultado da Campanha</h2>
+              <p className="text-slate-500 text-sm">{imageState.content ? "Arte, Estratégia e Scripts Gerados" : "Pré-visualização"}</p>
             </div>
-            <Button variant="secondary" onClick={handleDownload} icon={<Download className="w-4 h-4" />} disabled={imageState.isLoading || !currentDisplayImage} className={!currentDisplayImage ? 'opacity-50' : ''}>Baixar Imagem</Button>
+            
+            <div className="flex gap-2 flex-wrap justify-end">
+                {/* Result Tabs */}
+                {imageState.content && (
+                    <div className="flex bg-white rounded-lg p-1 shadow-sm border border-slate-200">
+                        <button onClick={() => setActiveResultTab('visual')} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1 ${activeResultTab === 'visual' ? 'bg-brand-50 text-brand-600' : 'text-slate-500 hover:bg-slate-50'}`}>
+                            <ImagePlus className="w-3 h-3" /> Visual
+                        </button>
+                        
+                        {imageState.calendar && imageState.calendar.length > 0 && (
+                            <>
+                                <button onClick={() => setActiveResultTab('calendar')} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1 ${activeResultTab === 'calendar' ? 'bg-brand-50 text-brand-600' : 'text-slate-500 hover:bg-slate-50'}`}>
+                                    <CalendarRange className="w-3 h-3" /> 5 Dias
+                                </button>
+                                <button onClick={() => setActiveResultTab('sales')} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1 ${activeResultTab === 'sales' ? 'bg-brand-50 text-brand-600' : 'text-slate-500 hover:bg-slate-50'}`}>
+                                    <MessageSquare className="w-3 h-3" /> Scripts
+                                </button>
+                            </>
+                        )}
+
+                        <button onClick={() => setActiveResultTab('video')} className={`px-3 py-1.5 rounded-md text-xs font-bold transition-all flex items-center gap-1 ${activeResultTab === 'video' ? 'bg-purple-50 text-purple-600' : 'text-slate-500 hover:bg-slate-50'}`}>
+                            <Video className="w-3 h-3" /> Vídeo Veo
+                        </button>
+                    </div>
+                )}
+                
+                {activeResultTab === 'visual' && (
+                    <Button variant="secondary" onClick={handleDownload} icon={<Download className="w-4 h-4" />} disabled={imageState.isLoading || !currentDisplayImage} className={!currentDisplayImage ? 'opacity-50' : ''}>Baixar</Button>
+                )}
+            </div>
           </div>
 
-          {/* --- COPY EDITOR PANEL --- */}
-          {imageState.content && (
-            <div className="w-full max-w-2xl bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-6 animate-in fade-in slide-in-from-top-4">
-              <div className="flex items-center justify-between mb-3 text-brand-600">
-                <div className="flex items-center gap-2">
-                   <PencilLine className="w-4 h-4" />
-                   <h3 className="text-xs font-bold uppercase tracking-wider">Editar Texto Gerado</h3>
-                </div>
-                <button 
-                    onClick={handleRegenerateText}
-                    disabled={isRegeneratingText}
-                    className="flex items-center gap-1 text-[10px] bg-brand-50 text-brand-600 px-2 py-1 rounded-md hover:bg-brand-100 transition-colors disabled:opacity-50"
-                >
-                    <RotateCcw className={`w-3 h-3 ${isRegeneratingText ? 'animate-spin' : ''}`} /> Recriar Texto
-                </button>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="col-span-1 md:col-span-2">
-                   <label className="block text-[10px] font-bold text-slate-500 mb-1">Título (Headline)</label>
-                   <input 
-                      type="text" 
-                      value={imageState.content.headline} 
-                      onChange={(e) => handleContentEdit('headline', e.target.value)}
-                      className="w-full text-sm font-semibold text-slate-800 px-3 py-2 border border-slate-200 rounded-lg focus:ring-1 focus:ring-brand-500 outline-none bg-slate-50"
-                   />
-                </div>
-                <div>
-                   <label className="block text-xs font-bold text-slate-500 mb-1">Corpo (Subtext)</label>
-                   <textarea 
-                      rows={3}
-                      value={imageState.content.subtext} 
-                      onChange={(e) => handleContentEdit('subtext', e.target.value)}
-                      className="w-full text-sm text-slate-700 px-3 py-2 border border-slate-200 rounded-lg focus:ring-1 focus:ring-brand-500 outline-none bg-slate-50 resize-none"
-                   />
-                </div>
-                 <div>
-                   <label className="block text-[10px] font-bold text-slate-500 mb-1">Destaque (Highlight)</label>
-                   <input 
-                      type="text" 
-                      value={imageState.content.highlight} 
-                      onChange={(e) => handleContentEdit('highlight', e.target.value)}
-                      className="w-full text-sm font-bold text-brand-600 px-3 py-2 border border-slate-200 rounded-lg focus:ring-1 focus:ring-brand-500 outline-none bg-slate-50"
-                   />
-                   <p className="text-[10px] text-slate-400 mt-2 italic">As alterações aparecem na imagem em tempo real.</p>
-                </div>
-              </div>
-            </div>
-          )}
-          
-          <div className="w-full flex justify-center">
-             <PreviewCanvas ref={previewRef} data={offerData} companyInfo={companyInfo} backgroundImage={currentDisplayImage} content={imageState.content} isLoading={imageState.isLoading} isPro={isPro} />
-          </div>
-
-          {/* Variants Grid */}
-          {imageState.images.length > 1 && (
-             <div className="mt-8 w-full max-w-2xl">
-                 <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-3">Variações Geradas</h3>
-                 <div className="grid grid-cols-4 gap-3">
-                    {imageState.images.map((img, index) => (
-                        <div 
-                           key={index}
-                           onClick={() => setImageState(prev => ({...prev, selectedIndex: index}))}
-                           className={`aspect-square rounded-xl cursor-pointer overflow-hidden border-2 transition-all hover:scale-105 shadow-sm ${imageState.selectedIndex === index ? 'border-brand-500 ring-2 ring-brand-200 scale-105' : 'border-white opacity-70 hover:opacity-100'}`}
-                        >
-                           <img src={img} alt={`Variante ${index + 1}`} className="w-full h-full object-cover" />
-                           {imageState.selectedIndex === index && (
-                             <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                                <CheckCircle2 className="w-6 h-6 text-white drop-shadow-md" />
-                             </div>
-                           )}
-                        </div>
-                    ))}
+          {/* --- AUDIT PANEL (Always visible if exists) --- */}
+          {imageState.audit && activeResultTab === 'visual' && (
+              <div className="w-full max-w-2xl bg-white rounded-xl shadow-lg border border-slate-200 mb-6 overflow-hidden animate-in fade-in slide-in-from-top-6">
+                 <div className="bg-slate-900 px-4 py-3 flex justify-between items-center">
+                     <h3 className="text-white text-sm font-bold flex items-center gap-2">
+                        <Lightbulb className="w-4 h-4 text-yellow-400" /> Auditoria de Oferta (Coach IA)
+                     </h3>
+                     <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${imageState.audit.score >= 80 ? 'bg-green-500 text-white' : imageState.audit.score >= 50 ? 'bg-yellow-500 text-slate-900' : 'bg-red-500 text-white'}`}>
+                        Nota: {imageState.audit.score}/100
+                     </span>
                  </div>
-             </div>
+                 <div className="p-4 flex flex-col md:flex-row gap-6">
+                    <div className="flex-1">
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1"><ThumbsUp className="w-3 h-3" /> Pontos Fortes</p>
+                        <ul className="space-y-1">
+                            {imageState.audit.strengths.map((s, i) => (
+                                <li key={i} className="text-xs text-slate-600 flex items-start gap-1.5">
+                                    <CheckCircle2 className="w-3 h-3 text-green-500 mt-0.5 shrink-0" /> {s}
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                    <div className="w-px bg-slate-100 hidden md:block"></div>
+                    <div className="flex-1">
+                        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> O que melhorar</p>
+                        <ul className="space-y-1">
+                            {imageState.audit.improvements.map((s, i) => (
+                                <li key={i} className="text-xs text-slate-600 flex items-start gap-1.5">
+                                    <ArrowUpToLine className="w-3 h-3 text-red-500 mt-0.5 shrink-0" /> {s}
+                                </li>
+                            ))}
+                        </ul>
+                    </div>
+                 </div>
+                 <div className="bg-slate-50 px-4 py-2 border-t border-slate-100 text-xs text-slate-500 italic flex items-center gap-2">
+                    <Award className="w-4 h-4 text-brand-500" /> Veredito: {imageState.audit.verdict}
+                 </div>
+              </div>
+          )}
+
+          {/* === VISUAL TAB === */}
+          <div className={activeResultTab === 'visual' ? 'block w-full flex flex-col items-center' : 'hidden'}>
+              <div className="w-full flex justify-center">
+                 <PreviewCanvas ref={previewRef} data={offerData} companyInfo={companyInfo} backgroundImage={currentDisplayImage} content={imageState.content} isLoading={imageState.isLoading} isPro={isPro} />
+              </div>
+
+              {/* Variants Grid */}
+              {imageState.images.length > 1 && (
+                 <div className="mt-8 w-full max-w-2xl">
+                     <h3 className="text-sm font-bold text-slate-500 uppercase tracking-wider mb-3">Variações Geradas</h3>
+                     <div className="grid grid-cols-4 gap-3">
+                        {imageState.images.map((img, index) => (
+                            <div 
+                               key={index}
+                               onClick={() => setImageState(prev => ({...prev, selectedIndex: index}))}
+                               className={`aspect-square rounded-xl cursor-pointer overflow-hidden border-2 transition-all hover:scale-105 shadow-sm ${imageState.selectedIndex === index ? 'border-brand-500 ring-2 ring-brand-200 scale-105' : 'border-white opacity-70 hover:opacity-100'}`}
+                            >
+                               <img src={img} alt={`Variante ${index + 1}`} className="w-full h-full object-cover" />
+                               {imageState.selectedIndex === index && (
+                                 <div className="absolute inset-0 flex items-center justify-center bg-black/20">
+                                    <CheckCircle2 className="w-6 h-6 text-white drop-shadow-md" />
+                                 </div>
+                               )}
+                            </div>
+                        ))}
+                     </div>
+                 </div>
+              )}
+
+              {/* SOCIAL MEDIA CAPTION */}
+              {imageState.socialPost && (
+                 <div className="w-full max-w-2xl mt-8 bg-white rounded-xl shadow-sm border border-slate-200 p-4 relative group">
+                     <div className="flex items-center justify-between mb-3">
+                        <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                            <MessageCircle className="w-4 h-4" /> Legenda para Instagram / Zap
+                        </h3>
+                        <button 
+                            onClick={handleCopyCaption} 
+                            className="text-[10px] bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-1 rounded flex items-center gap-1 transition-colors"
+                        >
+                            <Copy className="w-3 h-3" /> Copiar Tudo
+                        </button>
+                     </div>
+                     <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 text-sm text-slate-700 whitespace-pre-wrap font-sans leading-relaxed">
+                        {imageState.socialPost.caption}
+                        <div className="mt-2 text-brand-600 font-medium text-xs">
+                            {imageState.socialPost.hashtags.join(' ')}
+                        </div>
+                     </div>
+                 </div>
+              )}
+              
+              {/* COPY EDITOR PANEL */}
+              {imageState.content && (
+                <div className="w-full max-w-2xl bg-white rounded-xl shadow-sm border border-slate-200 p-4 mt-6">
+                  <div className="flex items-center justify-between mb-3 text-brand-600">
+                    <div className="flex items-center gap-2">
+                       <PencilLine className="w-4 h-4" />
+                       <h3 className="text-xs font-bold uppercase tracking-wider">Editar Texto no Banner</h3>
+                    </div>
+                    <button 
+                        onClick={handleRegenerateText}
+                        disabled={isRegeneratingText}
+                        className="flex items-center gap-1 text-[10px] bg-brand-50 text-brand-600 px-2 py-1 rounded-md hover:bg-brand-100 transition-colors disabled:opacity-50"
+                    >
+                        <RotateCcw className={`w-3 h-3 ${isRegeneratingText ? 'animate-spin' : ''}`} /> Recriar Texto
+                    </button>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="col-span-1 md:col-span-2">
+                       <label className="block text-[10px] font-bold text-slate-500 mb-1">Título (Headline)</label>
+                       <input 
+                          type="text" 
+                          value={imageState.content.headline} 
+                          onChange={(e) => handleContentEdit('headline', e.target.value)}
+                          className="w-full text-sm font-semibold text-slate-800 px-3 py-2 border border-slate-200 rounded-lg focus:ring-1 focus:ring-brand-500 outline-none bg-slate-50"
+                       />
+                    </div>
+                    <div>
+                       <label className="block text-xs font-bold text-slate-500 mb-1">Corpo (Subtext)</label>
+                       <textarea 
+                          rows={3}
+                          value={imageState.content.subtext} 
+                          onChange={(e) => handleContentEdit('subtext', e.target.value)}
+                          className="w-full text-sm text-slate-700 px-3 py-2 border border-slate-200 rounded-lg focus:ring-1 focus:ring-brand-500 outline-none bg-slate-50 resize-none"
+                       />
+                    </div>
+                     <div>
+                       <label className="block text-[10px] font-bold text-slate-500 mb-1">Destaque (Highlight)</label>
+                       <input 
+                          type="text" 
+                          value={imageState.content.highlight} 
+                          onChange={(e) => handleContentEdit('highlight', e.target.value)}
+                          className="w-full text-sm font-bold text-brand-600 px-3 py-2 border border-slate-200 rounded-lg focus:ring-1 focus:ring-brand-500 outline-none bg-slate-50"
+                       />
+                       <p className="text-[10px] text-slate-400 mt-2 italic">As alterações aparecem na imagem em tempo real.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+          </div>
+
+          {/* === CALENDAR TAB === */}
+          {activeResultTab === 'calendar' && imageState.calendar && (
+              <div className="w-full max-w-2xl bg-white rounded-xl shadow-lg border border-slate-200 p-6 animate-in fade-in slide-in-from-right-4">
+                  <div className="text-center mb-6">
+                      <h3 className="text-xl font-bold text-slate-900">Planejamento de 5 Dias</h3>
+                      <p className="text-slate-500 text-sm">Não poste apenas hoje. Crie uma sequência de vendas.</p>
+                  </div>
+                  <div className="space-y-4">
+                      {imageState.calendar.map((day, idx) => (
+                          <div key={idx} className="flex gap-4 p-4 rounded-xl border border-slate-100 hover:border-brand-200 hover:bg-brand-50/30 transition-all bg-slate-50">
+                              <div className="flex-shrink-0 w-12 h-12 bg-white rounded-lg border border-slate-200 flex flex-col items-center justify-center shadow-sm">
+                                  <span className="text-[10px] font-bold text-slate-400 uppercase">DIA</span>
+                                  <span className="text-lg font-bold text-brand-600">{idx + 1}</span>
+                              </div>
+                              <div className="flex-1">
+                                  <h4 className="font-bold text-slate-800 text-sm mb-1">{day.theme}</h4>
+                                  <p className="text-sm text-slate-600 leading-relaxed">{day.idea}</p>
+                              </div>
+                          </div>
+                      ))}
+                  </div>
+              </div>
+          )}
+
+          {/* === SALES SCRIPTS TAB === */}
+          {activeResultTab === 'sales' && imageState.salesScripts && (
+              <div className="w-full max-w-2xl bg-white rounded-xl shadow-lg border border-slate-200 p-6 animate-in fade-in slide-in-from-right-4">
+                  <div className="text-center mb-6">
+                      <h3 className="text-xl font-bold text-slate-900">Scripts para WhatsApp</h3>
+                      <p className="text-slate-500 text-sm">Copie e cole para converter interessados em compradores.</p>
+                  </div>
+                  <div className="space-y-6">
+                      
+                      {/* Script 1 */}
+                      <div className="bg-slate-50 rounded-xl border border-slate-200 overflow-hidden">
+                          <div className="bg-slate-100 px-4 py-2 border-b border-slate-200 flex justify-between items-center">
+                              <span className="text-xs font-bold text-slate-600 uppercase">1. Abordagem Inicial (Cliente perguntou preço)</span>
+                              <button onClick={() => copyToClipboard(imageState.salesScripts!.approach)} className="text-brand-600 hover:text-brand-700 text-xs font-bold flex items-center gap-1">
+                                  <Copy className="w-3 h-3" /> Copiar
+                              </button>
+                          </div>
+                          <div className="p-4 text-sm text-slate-700 whitespace-pre-wrap">{imageState.salesScripts.approach}</div>
+                      </div>
+
+                      {/* Script 2 */}
+                      <div className="bg-slate-50 rounded-xl border border-slate-200 overflow-hidden">
+                          <div className="bg-slate-100 px-4 py-2 border-b border-slate-200 flex justify-between items-center">
+                              <span className="text-xs font-bold text-slate-600 uppercase">2. Quebra de Objeção ("Tá caro")</span>
+                              <button onClick={() => copyToClipboard(imageState.salesScripts!.objection)} className="text-brand-600 hover:text-brand-700 text-xs font-bold flex items-center gap-1">
+                                  <Copy className="w-3 h-3" /> Copiar
+                              </button>
+                          </div>
+                          <div className="p-4 text-sm text-slate-700 whitespace-pre-wrap">{imageState.salesScripts.objection}</div>
+                      </div>
+
+                      {/* Script 3 */}
+                      <div className="bg-slate-50 rounded-xl border border-slate-200 overflow-hidden">
+                          <div className="bg-slate-100 px-4 py-2 border-b border-slate-200 flex justify-between items-center">
+                              <span className="text-xs font-bold text-slate-600 uppercase">3. Fechamento (Escassez)</span>
+                              <button onClick={() => copyToClipboard(imageState.salesScripts!.closing)} className="text-brand-600 hover:text-brand-700 text-xs font-bold flex items-center gap-1">
+                                  <Copy className="w-3 h-3" /> Copiar
+                              </button>
+                          </div>
+                          <div className="p-4 text-sm text-slate-700 whitespace-pre-wrap">{imageState.salesScripts.closing}</div>
+                      </div>
+
+                  </div>
+              </div>
+          )}
+
+          {/* === VIDEO TAB (VEO 3) === */}
+          {activeResultTab === 'video' && (
+              <div className="w-full max-w-2xl bg-white rounded-xl shadow-lg border border-slate-200 p-6 animate-in fade-in slide-in-from-right-4">
+                  <div className="text-center mb-6">
+                      <h3 className="text-xl font-bold text-slate-900 flex items-center justify-center gap-2">
+                          <Video className="w-6 h-6 text-purple-600" /> Vídeo Comercial com IA
+                      </h3>
+                      <p className="text-slate-500 text-sm">Transforme sua oferta em um vídeo de alto impacto (Modelo: Veo 3.1).</p>
+                  </div>
+
+                  {imageState.videoUrl ? (
+                      <div className="space-y-4">
+                          <div className="aspect-video bg-black rounded-xl overflow-hidden shadow-lg border-4 border-slate-100 relative group">
+                              <video 
+                                  src={imageState.videoUrl} 
+                                  controls 
+                                  className="w-full h-full object-contain"
+                                  autoPlay
+                                  loop
+                              />
+                          </div>
+                          <a href={imageState.videoUrl} download="video-campanha.mp4" className="block w-full text-center py-3 bg-brand-600 text-white font-bold rounded-xl hover:bg-brand-700 transition-colors">
+                              Baixar Vídeo MP4
+                          </a>
+                      </div>
+                  ) : (
+                      <div className="flex flex-col items-center justify-center py-8">
+                          {imageState.isVideoLoading ? (
+                              <div className="text-center space-y-4">
+                                  <div className="relative w-20 h-20 mx-auto">
+                                      <div className="absolute inset-0 border-4 border-slate-200 rounded-full"></div>
+                                      <div className="absolute inset-0 border-4 border-purple-600 rounded-full border-t-transparent animate-spin"></div>
+                                      <Video className="absolute inset-0 m-auto text-purple-600 w-8 h-8 animate-pulse" />
+                                  </div>
+                                  <div>
+                                      <h4 className="font-bold text-slate-800">Gerando Vídeo...</h4>
+                                      <p className="text-sm text-slate-500">Isso pode levar de 1 a 2 minutos.</p>
+                                  </div>
+                              </div>
+                          ) : (
+                              <div className="text-center space-y-6 max-w-md">
+                                  <div className="bg-purple-50 p-6 rounded-2xl border border-purple-100">
+                                      <p className="text-sm text-purple-900 mb-4 font-medium">
+                                          A IA vai analisar o texto da sua oferta ("{offerData.offerText.substring(0, 30)}...") e criar um vídeo comercial cinematográfico.
+                                      </p>
+                                      <Button onClick={handleGenerateVideo} className="w-full bg-purple-600 hover:bg-purple-700 shadow-purple-500/20" icon={<Play className="w-4 h-4 fill-current" />}>
+                                          Gerar Vídeo Agora
+                                      </Button>
+                                  </div>
+                                  <p className="text-[10px] text-slate-400">
+                                      * Requer chave de API com acesso ao modelo Veo (Projeto com Billing Ativado). Configure no seu perfil.
+                                  </p>
+                              </div>
+                          )}
+                      </div>
+                  )}
+              </div>
           )}
 
         </div>

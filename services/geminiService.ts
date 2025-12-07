@@ -1,16 +1,19 @@
 
 import { GoogleGenAI } from "@google/genai";
-import { BannerContent, ImageAspect } from "../types";
+import { BannerContent, ImageAspect, OfferAudit, SocialPost, DayPlan, SalesScripts } from "../types";
 
 interface GenerationResult {
   images: string[];
   content: BannerContent;
+  audit: OfferAudit;
+  socialPost: SocialPost;
+  calendar: DayPlan[];
+  salesScripts: SalesScripts;
 }
 
 // Helper to get initialized Gemini client
-const getGeminiClient = () => {
-  // The API key must be obtained exclusively from the environment variable process.env.API_KEY.
-  return new GoogleGenAI({ apiKey: process.env.API_KEY });
+const getGeminiClient = (apiKey: string) => {
+  return new GoogleGenAI({ apiKey: apiKey });
 };
 
 // Helper to clean JSON string
@@ -27,10 +30,12 @@ const generatePollinationsImage = async (prompt: string, aspect: ImageAspect, se
   return `https://pollinations.ai/p/${encodedPrompt}?width=${width}&height=${height}&nologo=true&seed=${seed}`;
 };
 
-export const checkConnection = async (): Promise<boolean> => {
+export const checkConnection = async (providedKey?: string): Promise<boolean> => {
   try {
-    const ai = getGeminiClient();
-    // Use a lightweight model check
+    const key = providedKey || process.env.API_KEY;
+    if (!key) return false;
+    
+    const ai = getGeminiClient(key);
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: { parts: [{ text: 'ping' }] },
@@ -42,7 +47,45 @@ export const checkConnection = async (): Promise<boolean> => {
   }
 };
 
+export const generateMarketingVideo = async (
+    apiKey: string,
+    prompt: string,
+    aspect: ImageAspect = ImageAspect.LANDSCAPE
+): Promise<string> => {
+    if (!apiKey) throw new Error("API Key para vídeo não fornecida");
+
+    const ai = getGeminiClient(apiKey);
+    
+    // Map aspect to Veo supported formats (16:9 or 9:16)
+    // Default to 16:9 if square or landscape
+    const videoAspect = aspect === ImageAspect.PORTRAIT ? '9:16' : '16:9'; 
+
+    let operation = await ai.models.generateVideos({
+        model: 'veo-3.1-fast-generate-preview',
+        prompt: `Commercial cinematic video, high quality, advertising style: ${prompt}`,
+        config: {
+            numberOfVideos: 1,
+            resolution: '720p',
+            aspectRatio: videoAspect as any
+        }
+    });
+
+    // Poll until done
+    while (!operation.done) {
+        await new Promise(resolve => setTimeout(resolve, 5000)); // Check every 5s
+        operation = await ai.operations.getVideosOperation({ operation: operation });
+    }
+
+    const downloadLink = operation.response?.generatedVideos?.[0]?.video?.uri;
+    if (!downloadLink) throw new Error("Falha ao gerar vídeo.");
+
+    // Append API Key to fetch securely
+    const videoUrl = `${downloadLink}&key=${apiKey}`;
+    return videoUrl;
+};
+
 export const generateBackgroundFromText = async (
+  apiKey: string,
   offerText: string,
   highlightText: string,
   aspect: ImageAspect = ImageAspect.SQUARE,
@@ -52,9 +95,13 @@ export const generateBackgroundFromText = async (
   isPro: boolean = false,
   offerStyle: string = 'custom',
   isolateProduct: boolean = false,
-  brandColor: string | undefined = undefined // New param
+  brandColor: string | undefined = undefined,
+  salesStrategy: string = 'benefit',
+  isFullCampaign: boolean = false // Novo parametro para controlar complexidade
 ): Promise<GenerationResult> => {
   
+  if (!apiKey) throw new Error("API Key não fornecida");
+
   // 1. Determine Style Modifiers
   let styleKeywords = "";
   switch (offerStyle) {
@@ -73,21 +120,42 @@ export const generateBackgroundFromText = async (
     case 'organic':
       styleKeywords = "nature, eco friendly, green leaves, sunlight, wooden texture, fresh, organic product photography";
       break;
+    case 'rustic':
+      styleKeywords = "rustic, vintage, aged wood background, warm tones, cozy atmosphere, handmade feel, cinematic lighting, brown and beige tones";
+      break;
+    case 'pop':
+      styleKeywords = "pop art, vibrant colors, halftone patterns, comic book style, bold outlines, energetic, high contrast, yellow and pink accents";
+      break;
+    case 'corporate':
+      styleKeywords = "corporate, professional, office background, glass and steel, blue tones, clean, business, trustworthy, skyscrapers blur";
+      break;
+    case 'fitness':
+      styleKeywords = "fitness, gym atmosphere, dynamic energy, sweat, dark background with rim lighting, smoke, intense, crossfit style";
+      break;
+    case 'kids':
+      styleKeywords = "kids, playful, pastel colors, balloons, toys background, soft lighting, happy, fun, cartoonish 3d render style";
+      break;
     default:
       styleKeywords = "";
   }
 
-  // 2. Isolate Product Modifier
+  // 2. Sales Strategy Modifiers (Copywriting Tone)
+  let strategyInstruction = "";
+  switch (salesStrategy) {
+      case 'urgency': strategyInstruction = "Foque na ESCASSEZ e TEMPO LIMITADO. Use palavras como 'Só hoje', 'Últimas unidades'."; break;
+      case 'exclusive': strategyInstruction = "Foque na EXCLUSIVIDADE e PREMIUM. Use tom sofisticado."; break;
+      case 'social_proof': strategyInstruction = "Foque em POPULARIDADE e CONFIANÇA. Use 'O mais vendido', 'Favorito dos clientes'."; break;
+      case 'benefit': default: strategyInstruction = "Foque no BENEFÍCIO DIRETO e TRANSFORMAÇÃO para o cliente."; break;
+  }
+
   const isolationInstruction = isolateProduct 
     ? "SOLID PLAIN BACKGROUND, product photography studio isolation, neutral background color, no distractions in background, clean cut"
     : "";
 
-  // Brand Color Modifier
   const brandInstruction = brandColor 
     ? `IMPORTANT: The brand color is ${brandColor}. Try to incorporate this color subtly in the background, lighting, or accents.`
     : "";
 
-  // Quality modifiers based on plan
   const qualityInstruction = isPro 
     ? "Visual Quality: MASTERPIECE, 8k resolution, highly detailed, cinematic lighting, award winning photography."
     : "Visual Quality: Standard resolution, simple layout, plain lighting, fast render.";
@@ -96,50 +164,86 @@ export const generateBackgroundFromText = async (
     ? "Use dynamic angles, depth of field (bokeh) and dramatic studio lighting."
     : "Use simple flat lighting and basic centered composition.";
 
-  // 3. Define Prompt for Text Analysis & Image Prompt Creation
+  // Define tasks based on whether it is a full campaign or just a quick post
+  const tasksPrompt = isFullCampaign ? `
+    TAREFA 4: PLANEJAMENTO SEMANAL (Valor Agregado)
+    Crie 5 ideias de posts para o usuário postar nos dias seguintes para vender este mesmo produto.
+    - calendar: Array com 5 objetos {day, theme, idea}. Themes ex: "Educativo", "Prova Social", "Bastidores".
+
+    TAREFA 5: SCRIPTS DE WHATSAPP (Valor Agregado)
+    Crie 3 scripts prontos para copiar e colar no WhatsApp.
+    - approach: Script para enviar para quem perguntou "preço?".
+    - objection: Script para quem disse "tá caro".
+    - closing: Script de fechamento com escassez "vai acabar".
+  ` : `
+    TAREFA 4: PLANEJAMENTO SEMANAL
+    Retorne array vazio [] para calendar.
+    TAREFA 5: SCRIPTS DE WHATSAPP
+    Retorne strings vazias para salesScripts.
+  `;
+
+  // 3. Define Prompt for Multi-Tasking (Copy, Image, Audit, Caption)
   const systemPrompt = `
-    Você é um Copywriter Criativo de Elite e Designer Visual.
-    Sua missão: Transformar ofertas comuns em anúncios.
+    Você é um Diretor de Marketing, Vendas e Design de IA.
     
-    ENTRADA:
+    ENTRADA DO USUÁRIO:
     - Oferta: "${offerText}"
-    - Destaque sugerido: "${highlightText}"
-    - Pedido visual: "${customImagePrompt}"
-    - Estilo Solicitado: "${offerStyle}"
+    - Preço/Destaque: "${highlightText}"
+    - Estilo Visual: "${offerStyle}"
+    - Estratégia de Venda: "${strategyInstruction}"
+    - Pedido extra imagem: "${customImagePrompt}"
     
-    DIRETRIZES DE COPYWRITING:
-    1. ZERO REDUNDÂNCIA: Nunca repita na Headline o que já está óbvio na imagem ou no subtexto.
-    2. GATILHOS MENTAIS: Troque descrições técnicas por sensações e benefícios.
-    3. VOCABULÁRIO DE IMPACTO: Use palavras poderosas.
-    
-    REGRAS ESTRUTURAIS (JSON):
-    1. HEADLINE (Máx 4 palavras): O gancho principal.
-    2. SUBTEXT (Lista Vertical): Separe itens com \\n.
-    3. HIGHLIGHT: Use "${highlightText}" se existir.
-    
-    REGRAS VISUAIS (Prompt de Imagem) - Nível do Usuário: ${isPro ? 'PRO' : 'GRÁTIS'}:
-    1. Crie um prompt em INGLÊS.
-    2. INCORPORE O ESTILO: ${styleKeywords}
-    3. ${isolationInstruction}
-    4. ${brandInstruction}
-    5. ${visualStyle}
-    6. ${qualityInstruction}
-    7. ENQUADRAMENTO: Use "Wide Shot", "Zoom Out", "Uncropped".
-    8. ESPAÇO NEGATIVO: Obrigatório deixar espaço para texto.
-    
-    RETORNE APENAS JSON NESTE FORMATO:
+    TAREFA 1: COPYWRITING (Banner)
+    Crie o texto para o banner seguindo a estratégia "${strategyInstruction}".
+    - Headline: Máx 4 palavras. Impactante.
+    - Subtext: Benefícios curtos (separados por \\n).
+    - Highlight: O preço ou chamada forte.
+
+    TAREFA 2: COACH DE VENDAS (Auditoria)
+    Analise a oferta original do usuário.
+    - Dê uma nota de 0 a 100 (score).
+    - Liste 2 pontos fortes (strengths).
+    - Liste 2 melhorias urgentes (improvements) para vender mais.
+    - Um veredito curto de 1 frase (verdict).
+
+    TAREFA 3: POST SOCIAL (Instagram/Zap)
+    Crie uma legenda vendedora para essa oferta.
+    - Use emojis.
+    - Texto persuasivo curto.
+    - 5 Hashtags relevantes.
+
+    ${tasksPrompt}
+
+    TAREFA 6: PROMPT VISUAL (Inglês)
+    Crie um prompt para gerar a imagem de fundo.
+    - ${styleKeywords}
+    - ${isolationInstruction}
+    - ${brandInstruction}
+    - ${visualStyle}
+    - ${qualityInstruction}
+    - Espaço negativo para texto.
+
+    RETORNE APENAS JSON NESTE FORMATO EXATO:
     {
-      "headline": "Texto Criativo",
-      "subtext": "Benefício 1\\nBenefício 2",
-      "highlight": "Destaque",
-      "imagePrompt": "English description..."
+      "banner": { "headline": "...", "subtext": "...", "highlight": "..." },
+      "audit": { "score": 85, "strengths": ["...", "..."], "improvements": ["...", "..."], "verdict": "..." },
+      "social": { "caption": "...", "hashtags": ["#...", "#..."] },
+      "calendar": [
+         { "day": "Dia 1", "theme": "...", "idea": "..." },
+         ...
+      ],
+      "salesScripts": {
+         "approach": "...",
+         "objection": "...",
+         "closing": "..."
+      },
+      "imagePrompt": "English prompt..."
     }
   `;
 
   try {
-    // --- STEP 1: TEXT & PROMPT GENERATION (Gemini 2.5 Flash) ---
-    // Initialize AI Client Dynamically
-    const ai = getGeminiClient();
+    // --- STEP 1: TEXT GENERATION (Gemini 2.5 Flash) ---
+    const ai = getGeminiClient(apiKey);
     const modelId = 'gemini-2.5-flash';
     
     const parts: any[] = [{ text: systemPrompt }];
@@ -151,15 +255,13 @@ export const generateBackgroundFromText = async (
           data: referenceImage.split(',')[1]
         }
       });
-      parts.push({ text: "Analise a imagem acima. O usuário quer RECRIAR esta imagem mantendo o objeto. Crie um 'imagePrompt' para isso combinado com: " + customImagePrompt });
+      parts.push({ text: "Analise a imagem acima. O usuário quer RECRIAR esta imagem mantendo o objeto. Adapte o 'imagePrompt' para isso." });
     }
 
     const textResponse = await ai.models.generateContent({
       model: modelId,
       contents: { parts },
-      config: {
-        responseMimeType: 'application/json'
-      }
+      config: { responseMimeType: 'application/json' }
     });
 
     let resultJson: any;
@@ -168,14 +270,23 @@ export const generateBackgroundFromText = async (
     } catch (e) {
       console.error("JSON Parse Error", e);
       resultJson = {
-        headline: offerText.split('\n')[0].substring(0, 20),
-        subtext: offerText,
-        highlight: highlightText || "Oferta",
+        banner: { headline: "Oferta", subtext: offerText, highlight: highlightText },
+        audit: { score: 50, strengths: ["Produto claro"], improvements: ["Seja mais específico"], verdict: "Oferta básica." },
+        social: { caption: offerText, hashtags: ["#oferta"] },
+        calendar: [],
+        salesScripts: { approach: "", objection: "", closing: "" },
         imagePrompt: "Simple background"
       };
     }
 
-    // --- STEP 2: IMAGE GENERATION (4 VARIANTS) ---
+    // Ensure structure exists even if AI hallucinates structure
+    const content = resultJson.banner || { headline: "Oferta", subtext: offerText, highlight: highlightText };
+    const audit = resultJson.audit || { score: 70, strengths: ["Boa intenção"], improvements: ["Melhorar clareza"], verdict: "Pode melhorar." };
+    const socialPost = resultJson.social || { caption: offerText, hashtags: [] };
+    const calendar = resultJson.calendar || [];
+    const salesScripts = resultJson.salesScripts || { approach: "Olá!", objection: "Podemos negociar.", closing: "Últimas peças." };
+
+    // --- STEP 2: IMAGE GENERATION ---
     let generatedImages: string[] = [];
 
     if (!skipImageGeneration) {
@@ -185,39 +296,24 @@ export const generateBackgroundFromText = async (
         [ImageAspect.LANDSCAPE]: '16:9'
       };
       
-      const safeFramingKeywords = isPro 
-        ? "wide shot, uncropped, zoom out, safe margin, full bleed, 8k, photorealistic, cinematic" 
-        : "wide shot, uncropped, zoom out, standard quality";
-        
-      // Combine custom prompt + style keywords + isolation instructions
       const imagePrompt = `${resultJson.imagePrompt}. ${styleKeywords}. ${isolationInstruction}. ${brandInstruction}`;
 
-      // Function to generate a single image (wrapped for Promise.all)
       const generateSingleImage = async (index: number): Promise<string | null> => {
         try {
           const imageParts: any[] = [];
           if (referenceImage) {
              imageParts.push({
-                inlineData: {
-                  mimeType: 'image/jpeg',
-                  data: referenceImage.split(',')[1]
-                }
+                inlineData: { mimeType: 'image/jpeg', data: referenceImage.split(',')[1] }
              });
-             imageParts.push({ 
-               text: `Generate a variation (Variant ${index + 1}). Keep main subject. ${imagePrompt}, ${safeFramingKeywords}` 
-             });
+             imageParts.push({ text: `Variant ${index + 1}. ${imagePrompt}` });
           } else {
-             imageParts.push({ text: `Variant ${index + 1}. ${imagePrompt}, ${safeFramingKeywords}` });
+             imageParts.push({ text: `Variant ${index + 1}. ${imagePrompt}` });
           }
 
           const imageResponse = await ai.models.generateContent({
             model: 'gemini-2.5-flash-image', 
             contents: { parts: imageParts },
-            config: {
-              imageConfig: {
-                 aspectRatio: ratioMap[aspect] as any,
-              }
-            }
+            config: { imageConfig: { aspectRatio: ratioMap[aspect] as any } }
           });
 
           for (const part of imageResponse.candidates?.[0]?.content?.parts || []) {
@@ -228,15 +324,12 @@ export const generateBackgroundFromText = async (
           return null;
         } catch (imgError: any) {
           console.warn(`Gemini Image Variant ${index} Error:`, imgError);
-          // Fallback to Pollinations with different seed
           return await generatePollinationsImage(imagePrompt, aspect, index * 100);
         }
       };
 
-      // Run 4 generations in parallel
       const imagePromises = Array(4).fill(0).map((_, i) => generateSingleImage(i));
       const results = await Promise.all(imagePromises);
-      
       generatedImages = results.filter((img): img is string => img !== null);
       
       if (generatedImages.length === 0) {
@@ -249,11 +342,11 @@ export const generateBackgroundFromText = async (
 
     return {
       images: generatedImages,
-      content: {
-        headline: resultJson.headline || "Oferta",
-        subtext: resultJson.subtext || offerText,
-        highlight: resultJson.highlight || highlightText || "Confira"
-      }
+      content,
+      audit,
+      socialPost,
+      calendar,
+      salesScripts
     };
 
   } catch (error: any) {
@@ -261,36 +354,20 @@ export const generateBackgroundFromText = async (
     const fallbackImg = await generatePollinationsImage("abstract gradient background", aspect, 999);
     return {
       images: [fallbackImg],
-      content: {
-        headline: "Erro na IA",
-        subtext: offerText,
-        highlight: "Tente Novamente"
-      }
+      content: { headline: "Erro na IA", subtext: offerText, highlight: "Tente Novamente" },
+      audit: { score: 0, strengths: [], improvements: ["Erro de conexão"], verdict: "Erro" },
+      socialPost: { caption: "Erro ao gerar legenda.", hashtags: [] },
+      calendar: [],
+      salesScripts: { approach: "Erro", objection: "Erro", closing: "Erro" }
     };
   }
 };
 
-export const regenerateCopy = async (offerText: string, offerStyle: string): Promise<BannerContent> => {
-    const ai = getGeminiClient();
+export const regenerateCopy = async (apiKey: string, offerText: string, offerStyle: string): Promise<BannerContent> => {
+    // Mantém a funcionalidade simples de regenerar apenas o copy do banner se o usuário clicar no botão "Recriar Texto"
+    const ai = getGeminiClient(apiKey);
+    const prompt = `Reescreva oferta: "${offerText}". Estilo: ${offerStyle}. JSON: {headline, subtext, highlight}`;
     
-    const prompt = `
-      Você é um especialista em Copywriting para Varejo.
-      Reescreva o texto para esta oferta: "${offerText}"
-      Estilo: ${offerStyle}
-      
-      Regras:
-      1. Headline curta (max 4 palavras) e impactante.
-      2. Subtexto persuasivo e direto.
-      3. Destaque (Highlight) deve ser o preço ou uma chamada de ação curtíssima.
-      
-      Responda APENAS JSON:
-      {
-        "headline": "...",
-        "subtext": "...",
-        "highlight": "..."
-      }
-    `;
-
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: prompt,
@@ -298,17 +375,8 @@ export const regenerateCopy = async (offerText: string, offerStyle: string): Pro
     });
 
     try {
-        const json = JSON.parse(cleanText(response.text || '{}'));
-        return {
-            headline: json.headline || "Oferta",
-            subtext: json.subtext || offerText,
-            highlight: json.highlight || "Confira"
-        };
+        return JSON.parse(cleanText(response.text || '{}'));
     } catch (e) {
-        return {
-            headline: "Nova Oferta",
-            subtext: offerText,
-            highlight: "Confira"
-        };
+        return { headline: "Nova Oferta", subtext: offerText, highlight: "Confira" };
     }
 };

@@ -10,8 +10,9 @@ export interface OfferData {
   verticalAlignment: 'top' | 'center' | 'bottom';
   aspect: ImageAspect;
   customImagePrompt?: string;
-  offerStyle?: 'custom' | 'minimal' | 'luxury' | 'gourmet' | 'tech' | 'organic';
+  offerStyle?: 'custom' | 'minimal' | 'luxury' | 'gourmet' | 'tech' | 'organic' | 'rustic' | 'pop' | 'corporate' | 'fitness' | 'kids';
   isolateProduct?: boolean;
+  salesStrategy?: 'benefit' | 'urgency' | 'exclusive' | 'social_proof'; // Nova estratégia
 }
 
 export interface CompanyInfo {
@@ -29,11 +30,42 @@ export interface BannerContent {
   highlight: string;
 }
 
+export interface OfferAudit {
+  score: number; // 0 to 100
+  strengths: string[];
+  improvements: string[];
+  verdict: string;
+}
+
+export interface SocialPost {
+  caption: string;
+  hashtags: string[];
+}
+
+// --- NOVOS TIPOS DE VALOR AGREGADO ---
+export interface DayPlan {
+  day: string; // "Dia 1", "Dia 2"...
+  theme: string; // "Educativo", "Prova Social"...
+  idea: string; // A ideia do conteúdo
+}
+
+export interface SalesScripts {
+  approach: string; // Script de abordagem
+  objection: string; // Quebra de objeção de preço
+  closing: string; // Script de fechamento/escassez
+}
+
 export interface GeneratedImageState {
   isLoading: boolean;
   images: string[];
   selectedIndex: number;
   content: BannerContent | null;
+  audit: OfferAudit | null;
+  socialPost: SocialPost | null;
+  calendar: DayPlan[] | null; // Planejamento semanal
+  salesScripts: SalesScripts | null; // Scripts de venda
+  videoUrl: string | null; // URL do vídeo gerado pelo Veo
+  isVideoLoading?: boolean;
   error: string | null;
 }
 

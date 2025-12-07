@@ -1,10 +1,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { User, PlanType, BUSINESS_SEGMENTS, BusinessSegment, FinancialTransaction } from '../types';
-import { X, User as UserIcon, Mail, Calendar, Check, CreditCard, Crown, Coffee, Briefcase, Phone, Pencil, Save, LogOut, Clock, AlertCircle, FileText } from 'lucide-react';
+import { X, User as UserIcon, Mail, Calendar, Check, CreditCard, Crown, Coffee, Briefcase, Phone, Pencil, Save, LogOut, Clock, AlertCircle, FileText, Key, Eye, EyeOff, ExternalLink, Video, HelpCircle } from 'lucide-react';
 import { Button } from './Button';
 import { storageService } from '../services/storageService';
 import { TermsModal } from './TermsModal';
+import { VeoTutorialModal } from './VeoTutorialModal';
 
 interface UserProfileModalProps {
   isOpen: boolean;
@@ -20,6 +21,13 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
   const [isEditing, setIsEditing] = useState(false);
   const [transactions, setTransactions] = useState<FinancialTransaction[]>([]);
   const [showTerms, setShowTerms] = useState(false);
+  const [showVeoTutorial, setShowVeoTutorial] = useState(false);
+  
+  // API Key State
+  const [apiKey, setApiKey] = useState('');
+  const [videoApiKey, setVideoApiKey] = useState('');
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [showVideoApiKey, setShowVideoApiKey] = useState(false);
   
   // Edit Form State
   const [formData, setFormData] = useState({
@@ -43,6 +51,10 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
           // Load transactions
           const txs = storageService.getFinancialTransactions(user.id);
           setTransactions(txs);
+          
+          // Load API Key from local storage (not user object)
+          setApiKey(storageService.getUserApiKey() || '');
+          setVideoApiKey(storageService.getVideoApiKey() || '');
       }
   }, [isOpen, user]);
 
@@ -52,7 +64,6 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
     if (selectedPlan !== user.plan) {
       onPlanChange(selectedPlan);
     }
-    // onClose handled by parent usually for plans
   };
 
   const handleProfileSave = (e: React.FormEvent) => {
@@ -65,8 +76,23 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
               businessSegment: formData.businessSegment
           });
           onProfileUpdate(updatedUser);
+          
+          // Save Text/Image API Key
+          if(apiKey.trim()) {
+            storageService.saveUserApiKey(apiKey.trim());
+          } else {
+            storageService.removeUserApiKey();
+          }
+
+          // Save Video API Key
+          if(videoApiKey.trim()) {
+            storageService.saveVideoApiKey(videoApiKey.trim());
+          } else {
+            storageService.removeVideoApiKey();
+          }
+
           setIsEditing(false);
-          alert('Perfil atualizado com sucesso!');
+          alert('Perfil e configurações atualizados com sucesso!');
       } catch (err) {
           alert('Erro ao atualizar perfil.');
       }
@@ -83,6 +109,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" onClick={onClose}></div>
       <TermsModal isOpen={showTerms} onClose={() => setShowTerms(false)} />
+      <VeoTutorialModal isOpen={showVeoTutorial} onClose={() => setShowVeoTutorial(false)} />
       
       <div className="relative bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col max-h-[90vh]">
         
@@ -148,6 +175,54 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
                           {BUSINESS_SEGMENTS.map(s => <option key={s} value={s}>{s}</option>)}
                       </select>
                   </div>
+
+                  {/* API KEY SECTION */}
+                  <div className="pt-2 border-t border-slate-200 mt-2">
+                       <label className="block text-xs font-bold text-slate-900 mb-1 flex items-center gap-1">
+                          <Key className="w-3 h-3 text-brand-600" /> Chave Gemini (Texto/Imagem)
+                       </label>
+                       <div className="relative mb-3">
+                           <input 
+                                type={showApiKey ? "text" : "password"}
+                                className="w-full pl-3 pr-10 py-2 border border-brand-200 bg-white rounded-lg text-sm focus:ring-2 focus:ring-brand-500 outline-none font-mono text-slate-600"
+                                placeholder="Cole sua chave aqui (AIza...)"
+                                value={apiKey}
+                                onChange={e => setApiKey(e.target.value)}
+                           />
+                           <button type="button" onClick={() => setShowApiKey(!showApiKey)} className="absolute right-3 top-2.5 text-slate-400">
+                               {showApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                           </button>
+                       </div>
+
+                       <div className="flex items-center justify-between mb-1">
+                           <label className="block text-xs font-bold text-slate-900 flex items-center gap-1">
+                              <Video className="w-3 h-3 text-purple-600" /> Chave Veo/Vídeo (Opcional)
+                           </label>
+                           <button type="button" onClick={() => setShowVeoTutorial(true)} className="text-[10px] text-purple-600 font-bold hover:underline flex items-center gap-1">
+                               <HelpCircle className="w-3 h-3" /> Como obter?
+                           </button>
+                       </div>
+                       <div className="relative">
+                           <input 
+                                type={showVideoApiKey ? "text" : "password"}
+                                className="w-full pl-3 pr-10 py-2 border border-purple-200 bg-white rounded-lg text-sm focus:ring-2 focus:ring-purple-500 outline-none font-mono text-slate-600"
+                                placeholder="Mesma chave ou específica para vídeo"
+                                value={videoApiKey}
+                                onChange={e => setVideoApiKey(e.target.value)}
+                           />
+                           <button type="button" onClick={() => setShowVideoApiKey(!showVideoApiKey)} className="absolute right-3 top-2.5 text-slate-400">
+                               {showVideoApiKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                           </button>
+                       </div>
+                       <p className="text-[9px] text-slate-400 mt-1 italic">
+                           * Necessário projeto com faturamento (billing) no Google Cloud.
+                       </p>
+
+                       <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-[10px] text-brand-600 font-bold mt-2 flex items-center gap-1 hover:underline">
+                           <ExternalLink className="w-3 h-3" /> Gerenciar chaves no Google AI Studio
+                       </a>
+                  </div>
+
                   <div className="flex gap-2 pt-2">
                       <button type="button" onClick={() => setIsEditing(false)} className="flex-1 py-2 text-sm text-slate-600 bg-white border border-slate-300 rounded-lg hover:bg-slate-50">Cancelar</button>
                       <button type="submit" className="flex-1 py-2 text-sm text-white bg-brand-600 rounded-lg hover:bg-brand-700 font-bold flex items-center justify-center gap-2">
@@ -176,6 +251,27 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
                         </p>
                     </div>
                 </div>
+
+                {/* API Key Status Display */}
+                <div className="grid grid-cols-2 gap-2">
+                    <div className={`p-2 rounded-xl border flex flex-col items-center text-center justify-center ${apiKey ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                        <Key className={`w-4 h-4 mb-1 ${apiKey ? 'text-green-600' : 'text-red-500'}`} />
+                        <span className={`text-[10px] font-bold ${apiKey ? 'text-green-800' : 'text-red-800'}`}>
+                            {apiKey ? 'API Texto OK' : 'Sem API Texto'}
+                        </span>
+                    </div>
+                    <div className={`p-2 rounded-xl border flex flex-col items-center text-center justify-center ${videoApiKey ? 'bg-purple-50 border-purple-200' : 'bg-slate-50 border-slate-200'}`}>
+                        <Video className={`w-4 h-4 mb-1 ${videoApiKey ? 'text-purple-600' : 'text-slate-400'}`} />
+                        <span className={`text-[10px] font-bold ${videoApiKey ? 'text-purple-800' : 'text-slate-500'}`}>
+                            {videoApiKey ? 'API Vídeo OK' : 'Sem API Vídeo'}
+                        </span>
+                    </div>
+                </div>
+                {!apiKey && (
+                    <button onClick={() => setIsEditing(true)} className="w-full text-xs bg-red-50 border border-red-200 text-red-600 px-2 py-2 rounded font-bold hover:bg-red-100 transition-colors">
+                        Configurar Chaves de Acesso
+                    </button>
+                )}
 
                 {/* Subscription Info */}
                 <div className="flex justify-between items-center p-3 rounded-xl border border-slate-100 bg-white">

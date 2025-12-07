@@ -8,11 +8,39 @@ const SETTINGS_KEY = 'promogen_settings';
 const CAMPAIGNS_KEY = 'promogen_campaigns';
 const TRANSACTIONS_KEY = 'promogen_transactions';
 const NOTIFICATIONS_KEY = 'promogen_notifications';
+const USER_API_KEY_STORAGE = 'promogen_user_api_key';
+const USER_VIDEO_API_KEY_STORAGE = 'promogen_user_video_api_key'; // Nova chave para Video
 
 // Helper to get today's date string YYYY-MM-DD
 const getTodayString = () => new Date().toISOString().split('T')[0];
 
 export const storageService = {
+  // --- User API Key Management (BYOK) ---
+  saveUserApiKey: (apiKey: string) => {
+    localStorage.setItem(USER_API_KEY_STORAGE, apiKey);
+  },
+
+  getUserApiKey: (): string | null => {
+    return localStorage.getItem(USER_API_KEY_STORAGE);
+  },
+
+  removeUserApiKey: () => {
+    localStorage.removeItem(USER_API_KEY_STORAGE);
+  },
+
+  // --- Video API Key Management ---
+  saveVideoApiKey: (apiKey: string) => {
+    localStorage.setItem(USER_VIDEO_API_KEY_STORAGE, apiKey);
+  },
+
+  getVideoApiKey: (): string | null => {
+    return localStorage.getItem(USER_VIDEO_API_KEY_STORAGE);
+  },
+
+  removeVideoApiKey: () => {
+    localStorage.removeItem(USER_VIDEO_API_KEY_STORAGE);
+  },
+
   // --- Initialization ---
   initializeTestUsers: () => {
     let users = [];
@@ -121,6 +149,8 @@ export const storageService = {
 
   logout: () => {
     localStorage.removeItem(CURRENT_USER_KEY);
+    // Nota: Não removemos a API Key no logout para conveniência do usuário no mesmo dispositivo,
+    // mas em ambientes públicos seria ideal remover. Vamos manter para UX.
   },
 
   getCurrentUser: (): User | null => {
