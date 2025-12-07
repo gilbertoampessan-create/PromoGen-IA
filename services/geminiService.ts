@@ -62,7 +62,7 @@ export const generateMarketingVideo = async (
 
     let operation = await ai.models.generateVideos({
         model: 'veo-3.1-fast-generate-preview',
-        prompt: `Commercial cinematic video, high quality, advertising style: ${prompt}`,
+        prompt: `Cinematic commercial advertisement, high quality, advertising style: ${prompt}`,
         config: {
             numberOfVideos: 1,
             resolution: '720p',
@@ -102,41 +102,41 @@ export const generateBackgroundFromText = async (
   
   if (!apiKey) throw new Error("API Key não fornecida");
 
-  // 1. Determine Style Modifiers
+  // 1. Determine Style Modifiers - Standard High Quality
   let styleKeywords = "";
   switch (offerStyle) {
     case 'luxury':
-      styleKeywords = "luxury, elegant, gold and black textures, marble, cinematic lighting, expensive look, bokeh";
+      styleKeywords = "luxury product photography, elegant, gold and black textures, marble, cinematic lighting, expensive look, bokeh, sharp focus";
       break;
     case 'gourmet':
-      styleKeywords = "delicious, gourmet food photography, steam, fresh ingredients, warm lighting, wooden table, appetizing";
+      styleKeywords = "delicious gourmet food photography, macro shot, steam rising, fresh ingredients, warm lighting, appetizing, depth of field";
       break;
     case 'tech':
-      styleKeywords = "futuristic, cyberpunk, neon lights, blue and purple glow, high tech, sleek, modern";
+      styleKeywords = "futuristic technology product shot, neon lighting, blue and purple glow, sleek, metallic reflections, dark modern background";
       break;
     case 'minimal':
-      styleKeywords = "minimalist, clean lines, vast white space, soft shadows, studio lighting, pastel tones, modern design";
+      styleKeywords = "minimalist product photography, clean white background, soft lighting, simple composition, modern design, pastel tones";
       break;
     case 'organic':
-      styleKeywords = "nature, eco friendly, green leaves, sunlight, wooden texture, fresh, organic product photography";
+      styleKeywords = "natural organic product photography, sunlight, leaves and wood textures, fresh, morning dew, soft natural lighting, eco friendly";
       break;
     case 'rustic':
-      styleKeywords = "rustic, vintage, aged wood background, warm tones, cozy atmosphere, handmade feel, cinematic lighting, brown and beige tones";
+      styleKeywords = "rustic vintage style, aged wood background, warm tungsten lighting, cozy atmosphere, handmade feel, brown tones";
       break;
     case 'pop':
-      styleKeywords = "pop art, vibrant colors, halftone patterns, comic book style, bold outlines, energetic, high contrast, yellow and pink accents";
+      styleKeywords = "pop art style, vibrant colors, hard lighting, strong shadows, halftone patterns, comic book aesthetic, bold outlines, energetic";
       break;
     case 'corporate':
-      styleKeywords = "corporate, professional, office background, glass and steel, blue tones, clean, business, trustworthy, skyscrapers blur";
+      styleKeywords = "corporate professional setting, modern office background, glass and steel, cool blue lighting, clean, trustworthy";
       break;
     case 'fitness':
-      styleKeywords = "fitness, gym atmosphere, dynamic energy, sweat, dark background with rim lighting, smoke, intense, crossfit style";
+      styleKeywords = "fitness gym atmosphere, dark background, rim lighting, dynamic energy, sweat texture, high contrast, motivation";
       break;
     case 'kids':
-      styleKeywords = "kids, playful, pastel colors, balloons, toys background, soft lighting, happy, fun, cartoonish 3d render style";
+      styleKeywords = "playful kids style, bright pastel colors, soft lighting, balloons and toys background, happy atmosphere, 3d render style";
       break;
     default:
-      styleKeywords = "";
+      styleKeywords = "professional product photography, studio lighting, sharp focus, high quality";
   }
 
   // 2. Sales Strategy Modifiers (Copywriting Tone)
@@ -149,20 +149,17 @@ export const generateBackgroundFromText = async (
   }
 
   const isolationInstruction = isolateProduct 
-    ? "SOLID PLAIN BACKGROUND, product photography studio isolation, neutral background color, no distractions in background, clean cut"
-    : "";
+    ? "solid plain background, product isolation, no background distractions, commercial catalog style"
+    : "blurred background, depth of field (bokeh) to highlight the subject";
 
   const brandInstruction = brandColor 
-    ? `IMPORTANT: The brand color is ${brandColor}. Try to incorporate this color subtly in the background, lighting, or accents.`
+    ? `IMPORTANT: Incorporate the brand color ${brandColor} into the lighting or background accents.`
     : "";
 
+  // Standard Quality Instruction
   const qualityInstruction = isPro 
-    ? "Visual Quality: MASTERPIECE, 8k resolution, highly detailed, cinematic lighting, award winning photography."
-    : "Visual Quality: Standard resolution, simple layout, plain lighting, fast render.";
-
-  const visualStyle = isPro
-    ? "Use dynamic angles, depth of field (bokeh) and dramatic studio lighting."
-    : "Use simple flat lighting and basic centered composition.";
+    ? "Visual Quality: 8k resolution, photorealistic, professional photography, highly detailed, sharp focus."
+    : "Visual Quality: High quality product photo, clear lighting, sharp details.";
 
   // Define tasks based on whether it is a full campaign or just a quick post
   const tasksPrompt = isFullCampaign ? `
@@ -184,7 +181,7 @@ export const generateBackgroundFromText = async (
 
   // 3. Define Prompt for Multi-Tasking (Copy, Image, Audit, Caption)
   const systemPrompt = `
-    Você é um Diretor de Marketing, Vendas e Design de IA.
+    Você é um Diretor de Marketing e Design de IA.
     
     ENTRADA DO USUÁRIO:
     - Oferta: "${offerText}"
@@ -215,13 +212,11 @@ export const generateBackgroundFromText = async (
     ${tasksPrompt}
 
     TAREFA 6: PROMPT VISUAL (Inglês)
-    Crie um prompt para gerar a imagem de fundo.
-    - ${styleKeywords}
+    Crie um prompt VISUAL DETALHADO para gerar a imagem de fundo.
+    - Descreva a iluminação, texturas e composição.
+    - Baseie-se no estilo: ${styleKeywords}
     - ${isolationInstruction}
     - ${brandInstruction}
-    - ${visualStyle}
-    - ${qualityInstruction}
-    - Espaço negativo para texto.
 
     RETORNE APENAS JSON NESTE FORMATO EXATO:
     {
@@ -296,7 +291,8 @@ export const generateBackgroundFromText = async (
         [ImageAspect.LANDSCAPE]: '16:9'
       };
       
-      const imagePrompt = `${resultJson.imagePrompt}. ${styleKeywords}. ${isolationInstruction}. ${brandInstruction}`;
+      // CONSTRUCT PROMPT
+      const imagePrompt = `Professional commercial photography of ${offerText}. ${resultJson.imagePrompt}. ${styleKeywords}. ${isolationInstruction}. ${brandInstruction}. ${qualityInstruction}`;
 
       const generateSingleImage = async (index: number): Promise<string | null> => {
         try {
@@ -364,7 +360,6 @@ export const generateBackgroundFromText = async (
 };
 
 export const regenerateCopy = async (apiKey: string, offerText: string, offerStyle: string): Promise<BannerContent> => {
-    // Mantém a funcionalidade simples de regenerar apenas o copy do banner se o usuário clicar no botão "Recriar Texto"
     const ai = getGeminiClient(apiKey);
     const prompt = `Reescreva oferta: "${offerText}". Estilo: ${offerStyle}. JSON: {headline, subtext, highlight}`;
     

@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { Sparkles, CheckCircle2, Zap, LayoutTemplate, Smartphone, ArrowRight, ShieldCheck, MessageCircle, Star, Quote, XCircle, Lock, FileText, MousePointerClick, Download, PenLine, Video, CalendarRange, Palette, Target, ChevronLeft, ChevronRight, Image as ImageIcon } from 'lucide-react';
+import { Sparkles, CheckCircle2, Zap, LayoutTemplate, Smartphone, ArrowRight, ShieldCheck, MessageCircle, Star, Quote, XCircle, Lock, FileText, MousePointerClick, Download, PenLine, Video, CalendarRange, Palette, Target, ChevronLeft, ChevronRight, Image as ImageIcon, Briefcase, Users, Cpu, Crown, Check } from 'lucide-react';
 import { Button } from './Button';
 import { storageService } from '../services/storageService';
 import { TermsModal } from './TermsModal';
@@ -10,99 +10,114 @@ interface LandingPageProps {
   onLogin: () => void;
 }
 
-// IMAGENS COMERCIAL LEVEL - Focadas em Produto e Oferta
+// --- AUDITORIA DE IMAGENS ---
+// Fonte: Unsplash (Licença Comercial Gratuita)
+// Tipo: Fotografia de Produto (Sem rostos reconhecíveis para evitar problemas de Direito de Imagem)
 const STYLE_EXAMPLES = [
   { 
-      name: 'Gourmet', 
-      prompt: 'High end burger photography',
-      image: 'https://images.unsplash.com/photo-1561758033-d89a9ad46330?auto=format&fit=crop&w=800&q=80', // Hambúrguer Dark Background (Vibe de anúncio)
-      color: 'from-orange-700', 
-      sub: 'Hamburguerias & Delivery' 
+      name: 'Minimalista', 
+      prompt: 'Minimalist product white background',
+      // Unsplash ID: 1523275335684-37898b6baf30 (Relógio em fundo neutro)
+      image: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80', 
+      color: 'from-slate-400', 
+      sub: 'Clean & Moderno' 
   },
   { 
-      name: 'Luxo / Gold', 
-      prompt: 'Luxury perfume bottle gold lighting',
-      image: 'https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?auto=format&fit=crop&w=800&q=80', // Perfume com reflexo dourado dramático
-      color: 'from-yellow-700', 
-      sub: 'Joias & Cosméticos' 
+      name: 'Luxo', 
+      prompt: 'Luxury gold perfume bottle',
+      // Unsplash ID: 1541963463532-d68292c34b19 (Perfume com tons dourados)
+      image: 'https://images.unsplash.com/photo-1541963463532-d68292c34b19?auto=format&fit=crop&w=800&q=80', 
+      color: 'from-yellow-600', 
+      sub: 'Gold & Premium' 
+  },
+  { 
+      name: 'Gourmet', 
+      prompt: 'Delicious burger food photography',
+      // Unsplash ID: 1568901346375-23c9450c58cd (Hambúrguer estúdio)
+      image: 'https://images.unsplash.com/photo-1568901346375-23c9450c58cd?auto=format&fit=crop&w=800&q=80', 
+      color: 'from-orange-600', 
+      sub: 'Restaurantes' 
   },
   { 
       name: 'Tech / Neon', 
-      prompt: 'Cyberpunk gaming setup neon',
-      image: 'https://images.unsplash.com/photo-1635322966219-b75ed3a93227?auto=format&fit=crop&w=800&q=80', // Setup extremamente neon/roxo (Vibe AI Gen)
+      prompt: 'Cyberpunk gaming setup',
+      // Unsplash ID: 1550745165-9bc0b252726f (Setup Gaming - Foco em objetos)
+      image: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?auto=format&fit=crop&w=800&q=80', 
       color: 'from-purple-600', 
-      sub: 'Gamers & Eletrônicos' 
-  },
-  { 
-      name: 'Minimalista', 
-      prompt: 'Minimalist white product',
-      image: 'https://images.unsplash.com/photo-1629198688000-71f23e745b6e?auto=format&fit=crop&w=800&q=80', // Fone branco em fundo branco (Super clean)
-      color: 'from-gray-800', 
-      sub: 'Design & Acessórios' 
-  },
-  { 
-      name: 'Fitness', 
-      prompt: 'Gym supplement dark gritty',
-      image: 'https://images.unsplash.com/photo-1593095948071-474c5cc2989d?auto=format&fit=crop&w=800&q=80', // Tênis/Equipamento com luz dramática de academia
-      color: 'from-red-700', 
-      sub: 'Academia & Suplementos' 
+      sub: 'Eletrônicos' 
   },
   { 
       name: 'Orgânico', 
-      prompt: 'Natural skincare product leaves',
-      image: 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=800&q=80', // Produto de pele com sombra de folha (Vibe SPA)
-      color: 'from-emerald-700', 
-      sub: 'Produtos Naturais' 
-  },
-  { 
-      name: 'Pop Art', 
-      prompt: 'Colorful sneakers pop art background',
-      image: 'https://images.unsplash.com/photo-1515955656352-a1fa3ffcd111?auto=format&fit=crop&w=800&q=80', // Tênis Azul em fundo vibrante
-      color: 'from-pink-600', 
-      sub: 'Moda Jovem & Street' 
+      prompt: 'Natural spa products leaves',
+      // Unsplash ID: 1540555700478-4be289fbecef (Produtos de Spa)
+      image: 'https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&w=800&q=80', 
+      color: 'from-green-600', 
+      sub: 'Natureza & Saúde' 
   },
   { 
       name: 'Rústico', 
-      prompt: 'Coffee beans dark wood',
-      image: 'https://images.unsplash.com/photo-1511920170033-f8396924c348?auto=format&fit=crop&w=800&q=80', // Café super texturizado
-      color: 'from-amber-800', 
-      sub: 'Cafeterias & Artesanato' 
+      prompt: 'Coffee on wood table',
+      // Unsplash ID: 1497935586351-b67a49e012bf (Café em madeira)
+      image: 'https://images.unsplash.com/photo-1497935586351-b67a49e012bf?auto=format&fit=crop&w=800&q=80', 
+      color: 'from-amber-700', 
+      sub: 'Café & Artesanal' 
+  },
+  { 
+      name: 'Pop Art', 
+      prompt: 'Vibrant headphones color background',
+      // Unsplash ID: 1515955656352-a1fa3ffcd111 (Fones coloridos)
+      image: 'https://images.unsplash.com/photo-1515955656352-a1fa3ffcd111?auto=format&fit=crop&w=800&q=80', 
+      color: 'from-pink-500', 
+      sub: 'Vibrante & Jovem' 
   },
   { 
       name: 'Corporativo', 
-      prompt: 'Modern office desk',
-      image: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=800&q=80', // Arquitetura moderna vidro/cidade
-      color: 'from-slate-800', 
-      sub: 'Consultoria & B2B' 
+      prompt: 'Modern office desk laptop',
+      // Unsplash ID: 1497215728101-856f4ea42174 (Mesa de escritório - Sem pessoas)
+      image: 'https://images.unsplash.com/photo-1497215728101-856f4ea42174?auto=format&fit=crop&w=800&q=80', 
+      color: 'from-blue-600', 
+      sub: 'Negócios & Serviços' 
   },
   { 
+      name: 'Fitness', 
+      prompt: 'Gym weights dark background',
+      // Unsplash ID: 1534438327276-14e5300c3a48 (Pesos de academia - Sem pessoas)
+      image: 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=800&q=80', 
+      color: 'from-red-600', 
+      sub: 'Academia & Força' 
+  },
+   { 
       name: 'Infantil', 
-      prompt: 'Cute plush toy pastel',
-      image: 'https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?auto=format&fit=crop&w=800&q=80', // Brinquedos coloridos e fofos
-      color: 'from-violet-600', 
-      sub: 'Brinquedos & Festas' 
+      prompt: 'Colorful toys kid room',
+      // Unsplash ID: 1566576912321-d58ddd7a6088 (Brinquedos)
+      image: 'https://images.unsplash.com/photo-1566576912321-d58ddd7a6088?auto=format&fit=crop&w=800&q=80', 
+      color: 'from-indigo-500', 
+      sub: 'Kids & Diversão' 
   },
 ];
 
-// Componente visual refinado
+// Card Visual Clean - Estilo Portfolio de Agência
 const StyleCard = ({ style }: { style: any }) => {
     return (
-        <div className="group relative aspect-square rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-300 bg-slate-900 border border-slate-800">
+        <div className="group relative aspect-[4/5] md:aspect-square rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-500 hover:-translate-y-1 bg-white border border-slate-100">
+            {/* Imagem */}
             <img 
                 src={style.image} 
-                alt={`Estilo ${style.name}`} 
-                className="w-full h-full object-cover opacity-90 group-hover:opacity-100 group-hover:scale-110 transition-transform duration-700"
+                alt={`Estilo ${style.name} - Exemplo de fotografia de produto`} 
+                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                 loading="lazy"
             />
-            {/* Overlay Gradiente Profundo para Texto Legível */}
-            <div className={`absolute inset-0 bg-gradient-to-t ${style.color} via-black/10 to-transparent opacity-80 group-hover:opacity-90 transition-opacity flex flex-col justify-end p-6 z-20`}>
-                <span className="text-white font-bold text-2xl tracking-tight translate-y-1 group-hover:translate-y-0 transition-transform duration-300 shadow-sm">{style.name}</span>
-                <span className="text-white/90 text-xs font-semibold tracking-wider uppercase mt-1 translate-y-1 group-hover:translate-y-0 transition-transform duration-300 delay-75">{style.sub}</span>
-            </div>
             
-            {/* Badge "AI Style" */}
-            <div className="absolute top-3 right-3 bg-white/20 backdrop-blur-md px-2 py-1 rounded-md border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                <Sparkles className="w-3 h-3 text-white" />
+            {/* Gradiente Overlay (Mais suave no light mode) */}
+            <div className={`absolute inset-0 bg-gradient-to-t ${style.color} via-transparent to-transparent opacity-80 transition-opacity duration-300`}></div>
+            
+            {/* Conteúdo */}
+            <div className="absolute bottom-0 left-0 right-0 p-5 z-20 text-white">
+                <div className="flex items-center gap-2 mb-1">
+                    <span className="font-bold text-xl tracking-tight drop-shadow-md">{style.name}</span>
+                </div>
+                <div className="w-8 h-1 bg-white/70 rounded-full mb-2 group-hover:w-full transition-all duration-500"></div>
+                <span className="text-white/90 text-xs font-semibold uppercase tracking-wider drop-shadow-sm">{style.sub}</span>
             </div>
         </div>
     );
@@ -120,7 +135,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
   useEffect(() => {
     const settings = storageService.getSettings();
     const number = settings.whatsappNumber || '5511999999999';
-    const message = settings.whatsappMessage || 'Olá, gostaria de saber mais sobre o PromoGen.';
+    const message = settings.whatsappMessage || 'Olá, gostaria de saber mais sobre a PromoGen.';
     setWhatsappUrl(`https://wa.me/${number}?text=${encodeURIComponent(message)}`);
 
     // Responsive Carousel Logic
@@ -150,191 +165,115 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans">
+    <div className="min-h-screen bg-white font-sans selection:bg-brand-100 selection:text-brand-900">
       <TermsModal isOpen={showTerms} onClose={() => setShowTerms(false)} />
 
-      {/* Navbar */}
-      <nav className="fixed top-0 w-full bg-white/80 backdrop-blur-md border-b border-slate-200 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      {/* Navbar (Light & Clean) */}
+      <nav className="fixed top-0 w-full bg-white/80 backdrop-blur-md border-b border-slate-100 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Sparkles className="w-6 h-6 text-brand-600 fill-brand-100" />
-            <span className="text-xl font-bold text-slate-900">PromoGen IA</span>
+            <div className="bg-brand-600 p-2 rounded-xl shadow-brand-500/20 shadow-lg">
+                <Sparkles className="w-5 h-5 text-white" />
+            </div>
+            <span className="text-xl font-bold text-slate-900 tracking-tight">PromoGen <span className="text-brand-600">Agency</span></span>
           </div>
-          <div className="flex gap-4">
-            <button onClick={onLogin} className="text-sm font-semibold text-slate-600 hover:text-brand-600">
-              Entrar
+          <div className="flex gap-4 items-center">
+            <button onClick={onLogin} className="text-sm font-semibold text-slate-500 hover:text-brand-600 transition-colors hidden sm:block">
+              Área do Cliente
             </button>
-            <Button onClick={onStart} className="px-5 py-2 h-auto text-sm rounded-lg">
-              Começar Agora
+            <Button onClick={onStart} className="px-6 py-2.5 h-auto text-sm rounded-xl bg-brand-600 text-white hover:bg-brand-700 border-none font-bold shadow-lg shadow-brand-500/20">
+              Contratar Agência IA
             </Button>
           </div>
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <section className="pt-32 pb-16 px-4 text-center max-w-5xl mx-auto">
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-50 border border-purple-100 text-purple-700 text-xs font-bold uppercase tracking-wider mb-6 animate-in fade-in slide-in-from-bottom-4">
-          <Video className="w-3 h-3 fill-current" /> Novo: Geração de Vídeo com Veo
+      {/* Hero Section (Light & Professional) */}
+      <section className="pt-32 pb-20 px-4 text-center max-w-6xl mx-auto relative overflow-hidden">
+        {/* Background Decorative Elements */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-brand-50 via-white to-white -z-10"></div>
+        <div className="absolute top-20 right-0 w-96 h-96 bg-purple-50 rounded-full blur-3xl -z-10 opacity-60"></div>
+        <div className="absolute bottom-0 left-0 w-96 h-96 bg-blue-50 rounded-full blur-3xl -z-10 opacity-60"></div>
+
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white border border-slate-200 text-slate-600 text-xs font-bold uppercase tracking-wider mb-8 shadow-sm hover:shadow-md transition-all cursor-default animate-in fade-in slide-in-from-bottom-4">
+          <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span> Agência Digital Aberta 24h
         </div>
-        <h1 className="text-5xl md:text-7xl font-extrabold text-slate-900 tracking-tight mb-6 leading-tight">
-          Crie Ofertas, Imagens e <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-brand-600">Vídeos</span> com IA
+        
+        <h1 className="text-5xl md:text-7xl font-extrabold text-slate-900 tracking-tight mb-6 leading-[1.1]">
+          Pare de gastar com <br/>
+          <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-600 to-purple-600">Freelancers Caros</span>
         </h1>
-        <p className="text-xl text-slate-600 mb-10 max-w-3xl mx-auto">
-          A primeira plataforma que gera <strong>campanhas completas</strong>: Banner promocional, legendas, scripts de venda, calendário de posts e vídeos comerciais cinematográficos. Tudo em segundos.
+        
+        <p className="text-xl text-slate-600 mb-10 max-w-3xl mx-auto leading-relaxed">
+          Contrate nossa <strong>Agência de Inteligência Artificial</strong>. Tenha um Designer, um Redator e um Estrategista trabalhando juntos para criar campanhas completas em segundos.
         </p>
+        
+        {/* The Agency Team - Visual Representation */}
+        <div className="flex flex-wrap justify-center gap-4 mb-12">
+           <div className="flex items-center gap-3 bg-white px-5 py-3 rounded-2xl shadow-sm border border-slate-100">
+              <div className="p-2 bg-blue-100 rounded-lg text-blue-600"><PenLine className="w-5 h-5" /></div>
+              <div className="text-left">
+                 <p className="text-xs font-bold text-slate-400 uppercase">Seu</p>
+                 <p className="text-sm font-bold text-slate-800">Copywriter</p>
+              </div>
+           </div>
+           <div className="flex items-center gap-3 bg-white px-5 py-3 rounded-2xl shadow-sm border border-slate-100">
+              <div className="p-2 bg-purple-100 rounded-lg text-purple-600"><Palette className="w-5 h-5" /></div>
+              <div className="text-left">
+                 <p className="text-xs font-bold text-slate-400 uppercase">Seu</p>
+                 <p className="text-sm font-bold text-slate-800">Designer</p>
+              </div>
+           </div>
+           <div className="flex items-center gap-3 bg-white px-5 py-3 rounded-2xl shadow-sm border border-slate-100">
+              <div className="p-2 bg-amber-100 rounded-lg text-amber-600"><Target className="w-5 h-5" /></div>
+              <div className="text-left">
+                 <p className="text-xs font-bold text-slate-400 uppercase">Seu</p>
+                 <p className="text-sm font-bold text-slate-800">Estrategista</p>
+              </div>
+           </div>
+        </div>
+        
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-          <Button onClick={onStart} className="px-8 py-4 text-lg w-full sm:w-auto shadow-xl shadow-brand-500/20 bg-slate-900 hover:bg-slate-800">
-            Criar Minha Campanha
+          <Button onClick={onStart} className="px-10 py-5 text-lg w-full sm:w-auto shadow-xl shadow-brand-600/20 bg-brand-600 hover:bg-brand-700 border-none transition-transform hover:scale-105">
+            <Zap className="w-5 h-5 mr-2 fill-current" /> Contratar Minha Agência IA
           </Button>
-          <p className="text-sm text-slate-400 mt-2 sm:mt-0 flex items-center gap-1">
-             <CheckCircle2 className="w-3 h-3 text-green-500" /> Teste Grátis Disponível
+          <p className="text-sm text-slate-500 mt-2 sm:mt-0 flex items-center gap-1 font-medium">
+             <CheckCircle2 className="w-4 h-4 text-green-500" /> Teste sem compromisso
           </p>
         </div>
       </section>
 
-      {/* --- HOW IT WORKS --- */}
-      <section className="py-16 bg-white border-y border-slate-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      {/* Styles Carousel (Light Gray Background) */}
+      <section className="py-20 bg-slate-50 relative border-y border-slate-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
             <div className="text-center mb-12">
-                <h2 className="text-3xl font-bold text-slate-900">Do Texto à Venda em 3 Passos</h2>
-                <p className="text-slate-500 mt-2">Você descreve, a IA cria tudo.</p>
-            </div>
-
-            <div className="grid md:grid-cols-3 gap-8 relative">
-                {/* Connecting Line (Desktop) */}
-                <div className="hidden md:block absolute top-12 left-20 right-20 h-0.5 bg-gradient-to-r from-slate-200 via-brand-200 to-slate-200 -z-0"></div>
-
-                {/* Step 1 */}
-                <div className="relative z-10 flex flex-col items-center text-center group">
-                    <div className="w-24 h-24 bg-white border-2 border-slate-100 rounded-full flex items-center justify-center shadow-sm group-hover:border-brand-500 group-hover:shadow-brand-100 group-hover:scale-110 transition-all duration-300 mb-6">
-                        <PenLine className="w-10 h-10 text-slate-400 group-hover:text-brand-600 transition-colors" />
-                    </div>
-                    <div className="bg-white px-2">
-                        <h3 className="text-xl font-bold text-slate-900 mb-2">1. Descreva a Oferta</h3>
-                        <p className="text-slate-600 text-sm leading-relaxed">
-                            Ex: "Tênis de corrida neon por R$ 299". Escolha um estilo (Luxo, Pop, Rústico...) ou deixe a IA livre.
-                        </p>
-                    </div>
-                </div>
-
-                {/* Step 2 */}
-                <div className="relative z-10 flex flex-col items-center text-center group">
-                    <div className="w-24 h-24 bg-white border-2 border-slate-100 rounded-full flex items-center justify-center shadow-sm group-hover:border-purple-500 group-hover:shadow-purple-100 group-hover:scale-110 transition-all duration-300 mb-6">
-                        <Sparkles className="w-10 h-10 text-slate-400 group-hover:text-purple-600 transition-colors" />
-                    </div>
-                    <div className="bg-white px-2">
-                        <h3 className="text-xl font-bold text-slate-900 mb-2">2. Magia da IA</h3>
-                        <p className="text-slate-600 text-sm leading-relaxed">
-                            Geramos a imagem do produto, o texto persuasivo (copy), scripts de WhatsApp e até um vídeo comercial.
-                        </p>
-                    </div>
-                </div>
-
-                {/* Step 3 */}
-                <div className="relative z-10 flex flex-col items-center text-center group">
-                    <div className="w-24 h-24 bg-white border-2 border-slate-100 rounded-full flex items-center justify-center shadow-sm group-hover:border-green-500 group-hover:shadow-green-100 group-hover:scale-110 transition-all duration-300 mb-6">
-                        <Download className="w-10 h-10 text-slate-400 group-hover:text-green-600 transition-colors" />
-                    </div>
-                    <div className="bg-white px-2">
-                        <h3 className="text-xl font-bold text-slate-900 mb-2">3. Publique e Lucre</h3>
-                        <p className="text-slate-600 text-sm leading-relaxed">
-                            Baixe os materiais prontos para Feed, Stories e Status. Use nosso calendário de 5 dias para vender mais.
-                        </p>
-                    </div>
-                </div>
-            </div>
-        </div>
-      </section>
-
-      {/* Features Grid (Updated) */}
-      <section className="py-20 bg-slate-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-slate-900 mb-4">Muito Mais que um Gerador de Imagens</h2>
-            <p className="text-slate-600">Uma agência de marketing completa no seu bolso.</p>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {/* Feature 1 */}
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:border-brand-200 transition-all group">
-              <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center text-purple-600 mb-4 group-hover:scale-110 transition-transform">
-                <Video className="w-6 h-6" />
-              </div>
-              <h3 className="text-lg font-bold text-slate-900 mb-2">Vídeos Comerciais (Veo)</h3>
-              <p className="text-sm text-slate-600 leading-relaxed">
-                Transforme sua oferta em um vídeo cinematográfico usando o modelo Google Veo. Ideal para Reels e TikTok.
-              </p>
-            </div>
-
-            {/* Feature 2 */}
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:border-brand-200 transition-all group">
-              <div className="w-12 h-12 bg-brand-100 rounded-xl flex items-center justify-center text-brand-600 mb-4 group-hover:scale-110 transition-transform">
-                <Palette className="w-6 h-6" />
-              </div>
-              <h3 className="text-lg font-bold text-slate-900 mb-2">10+ Estilos Visuais</h3>
-              <p className="text-sm text-slate-600 leading-relaxed">
-                Do Minimalista ao Cyberpunk, do Rústico ao Infantil. Ou use o modo "Livre" para criar qualquer coisa que imaginar.
-              </p>
-            </div>
-
-            {/* Feature 3 */}
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:border-brand-200 transition-all group">
-              <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center text-green-600 mb-4 group-hover:scale-110 transition-transform">
-                <CalendarRange className="w-6 h-6" />
-              </div>
-              <h3 className="text-lg font-bold text-slate-900 mb-2">Planejamento Semanal</h3>
-              <p className="text-sm text-slate-600 leading-relaxed">
-                A IA cria um calendário de 5 dias com ideias de conteúdo para manter sua audiência engajada após a oferta.
-              </p>
-            </div>
-
-            {/* Feature 4 */}
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:border-brand-200 transition-all group">
-              <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center text-orange-600 mb-4 group-hover:scale-110 transition-transform">
-                <MessageCircle className="w-6 h-6" />
-              </div>
-              <h3 className="text-lg font-bold text-slate-900 mb-2">Scripts de Venda</h3>
-              <p className="text-sm text-slate-600 leading-relaxed">
-                Receba roteiros prontos para o WhatsApp: como abordar, como quebrar a objeção "tá caro" e como fechar a venda.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Styles Carousel */}
-      <section className="py-16 bg-white overflow-hidden border-t border-slate-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-10">
-                <h2 className="text-2xl font-bold text-slate-900">Qualidade de Estúdio (8k)</h2>
-                <p className="text-slate-500">Mais de 10 estilos prontos para sua marca</p>
+                <h2 className="text-3xl font-bold text-slate-900 mb-2">Portfolio da Agência</h2>
+                <p className="text-slate-500">Nossa IA domina todos os estilos visuais que sua marca precisa.</p>
             </div>
             
-            <div className="relative group">
-                {/* Navigation Buttons */}
+            <div className="relative group px-4 md:px-12">
                 <button 
                     onClick={prevSlide}
-                    className="absolute left-0 md:-left-12 top-1/2 -translate-y-1/2 z-20 bg-white/80 hover:bg-white text-slate-700 p-3 rounded-full shadow-lg backdrop-blur-sm border border-slate-200 transition-all hover:scale-110"
+                    className="absolute left-0 top-1/2 -translate-y-1/2 z-20 bg-white hover:bg-brand-50 text-slate-700 hover:text-brand-600 p-3 rounded-full shadow-lg border border-slate-100 transition-all hover:scale-110 group"
                 >
-                    <ChevronLeft className="w-6 h-6" />
+                    <ChevronLeft className="w-6 h-6 group-hover:-translate-x-1 transition-transform" />
                 </button>
                 <button 
                     onClick={nextSlide}
-                    className="absolute right-0 md:-right-12 top-1/2 -translate-y-1/2 z-20 bg-white/80 hover:bg-white text-slate-700 p-3 rounded-full shadow-lg backdrop-blur-sm border border-slate-200 transition-all hover:scale-110"
+                    className="absolute right-0 top-1/2 -translate-y-1/2 z-20 bg-white hover:bg-brand-50 text-slate-700 hover:text-brand-600 p-3 rounded-full shadow-lg border border-slate-100 transition-all hover:scale-110 group"
                 >
-                    <ChevronRight className="w-6 h-6" />
+                    <ChevronRight className="w-6 h-6 group-hover:translate-x-1 transition-transform" />
                 </button>
 
-                {/* Slider Track */}
-                <div className="overflow-hidden rounded-2xl p-2 -m-2">
+                <div className="overflow-hidden p-4 -m-4">
                     <div 
-                        className="flex transition-transform duration-500 ease-out"
+                        className="flex transition-transform duration-700 cubic-bezier(0.4, 0, 0.2, 1)"
                         style={{ transform: `translateX(-${currentStyleIndex * (100 / itemsPerView)}%)` }}
                     >
                         {STYLE_EXAMPLES.map((style, index) => (
                             <div 
                                 key={index} 
-                                className="flex-shrink-0 px-2"
+                                className="flex-shrink-0 px-3"
                                 style={{ width: `${100 / itemsPerView}%` }}
                             >
                                 <StyleCard style={style} />
@@ -343,115 +282,185 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
                     </div>
                 </div>
             </div>
-            
-            <div className="flex justify-center mt-6 gap-2">
-                {Array.from({ length: Math.ceil(STYLE_EXAMPLES.length - itemsPerView + 1) }).map((_, idx) => (
-                    <div 
-                        key={idx} 
-                        className={`h-1.5 rounded-full transition-all duration-300 ${currentStyleIndex === idx ? 'w-8 bg-brand-600' : 'w-2 bg-slate-300'}`}
-                    />
-                ))}
+        </div>
+      </section>
+
+      {/* --- AGENCY WORKFLOW (Clean White) --- */}
+      <section className="py-24 bg-white relative">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-16">
+                <h2 className="text-3xl font-bold text-slate-900">Como sua Nova Agência Trabalha</h2>
+                <p className="text-slate-500 mt-2">Um fluxo de trabalho profissional, automatizado para você.</p>
+            </div>
+
+            <div className="grid md:grid-cols-3 gap-12 relative">
+                {/* Connector Line (Desktop) */}
+                <div className="hidden md:block absolute top-12 left-[16%] right-[16%] h-0.5 bg-slate-100 z-0"></div>
+
+                {/* Step 1 */}
+                <div className="flex flex-col items-center text-center group relative z-10">
+                    <div className="w-24 h-24 bg-white border-2 border-slate-100 rounded-3xl flex items-center justify-center mb-6 shadow-sm group-hover:shadow-md transition-all group-hover:border-brand-200 group-hover:-translate-y-1">
+                        <Briefcase className="w-10 h-10 text-slate-400 group-hover:text-brand-600 transition-colors" />
+                    </div>
+                    <h3 className="text-xl font-bold text-slate-900 mb-3">1. O Briefing</h3>
+                    <p className="text-slate-600 leading-relaxed text-sm px-4">
+                        Você atua como o Diretor. Apenas diga qual produto quer vender e qual o objetivo da campanha.
+                    </p>
+                </div>
+
+                {/* Step 2 */}
+                <div className="flex flex-col items-center text-center group relative z-10">
+                    <div className="w-24 h-24 bg-white border-2 border-slate-100 rounded-3xl flex items-center justify-center mb-6 shadow-sm group-hover:shadow-md transition-all group-hover:border-purple-200 group-hover:-translate-y-1">
+                        <Cpu className="w-10 h-10 text-slate-400 group-hover:text-purple-600 transition-colors" />
+                    </div>
+                    <h3 className="text-xl font-bold text-slate-900 mb-3">2. A Produção</h3>
+                    <p className="text-slate-600 leading-relaxed text-sm px-4">
+                        Nossos agentes de IA (Designer e Redator) criam imagens 8k, textos persuasivos e scripts de venda.
+                    </p>
+                </div>
+
+                {/* Step 3 */}
+                <div className="flex flex-col items-center text-center group relative z-10">
+                    <div className="w-24 h-24 bg-white border-2 border-slate-100 rounded-3xl flex items-center justify-center mb-6 shadow-sm group-hover:shadow-md transition-all group-hover:border-green-200 group-hover:-translate-y-1">
+                        <Target className="w-10 h-10 text-slate-400 group-hover:text-green-600 transition-colors" />
+                    </div>
+                    <h3 className="text-xl font-bold text-slate-900 mb-3">3. O Resultado</h3>
+                    <p className="text-slate-600 leading-relaxed text-sm px-4">
+                        Você recebe a campanha pronta para postar e os roteiros para fechar vendas no WhatsApp.
+                    </p>
+                </div>
             </div>
         </div>
       </section>
 
-      {/* Pricing Section */}
+      {/* Pricing Section (Updated to Highlight Differentiators) */}
       <section className="py-24 bg-slate-50 border-t border-slate-200" id="pricing">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl font-bold text-slate-900 mb-4">Escolha seu Poder de Venda</h2>
-            <p className="text-slate-600">Comece grátis e escale quando quiser</p>
+            <h2 className="text-3xl font-bold text-slate-900 mb-4">Investimento</h2>
+            <p className="text-slate-500 max-w-2xl mx-auto">
+                Escolha entre contratar um "Estagiário" limitado ou ter a força de uma Agência Completa trabalhando por você 24 horas por dia.
+            </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            {/* Free Plan */}
-            <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm hover:shadow-md transition-all relative overflow-hidden">
-              <h3 className="text-lg font-bold text-slate-900 mb-2">Iniciante</h3>
-              <div className="flex items-baseline gap-1 mb-6">
-                <span className="text-4xl font-extrabold text-slate-900">R$ 0</span>
-                <span className="text-slate-500">/mês</span>
+          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto items-center">
+            
+            {/* Free Plan (The Intern) */}
+            <div className="bg-white p-8 rounded-3xl border border-slate-200 opacity-80 hover:opacity-100 transition-all hover:shadow-lg">
+              <h3 className="text-lg font-bold text-slate-600 mb-2">O Estagiário (Grátis)</h3>
+              <p className="text-xs text-slate-400 mb-6 h-8">Para quem está só testando e não se importa com limitações.</p>
+              
+              <div className="flex items-baseline gap-1 mb-8">
+                <span className="text-4xl font-extrabold text-slate-400">R$ 0</span>
               </div>
+              
               <ul className="space-y-4 mb-8">
-                <li className="flex items-center gap-3 text-slate-600 text-sm">
-                  <CheckCircle2 className="w-5 h-5 text-green-500" /> 2 gerações de imagem por dia
+                <li className="flex items-center gap-3 text-slate-500 text-sm">
+                  <CheckCircle2 className="w-4 h-4" /> Apenas 2 artes por dia
                 </li>
-                <li className="flex items-center gap-3 text-slate-600 text-sm">
-                  <CheckCircle2 className="w-5 h-5 text-green-500" /> Copywriting básico
+                <li className="flex items-center gap-3 text-slate-500 text-sm">
+                  <CheckCircle2 className="w-4 h-4" /> Qualidade Padrão
                 </li>
-                 <li className="flex items-center gap-3 text-slate-400 text-sm">
-                  <XCircle className="w-5 h-5 text-slate-300" /> Sem Geração de Vídeo
+                 <li className="flex items-center gap-3 text-slate-400 text-sm line-through decoration-slate-300">
+                  <XCircle className="w-4 h-4 text-slate-300" /> Sem Vídeos Comerciais
                 </li>
-                <li className="flex items-center gap-3 text-slate-400 text-sm">
-                  <XCircle className="w-5 h-5 text-slate-300" /> Sem Estilos Premium (10+)
+                 <li className="flex items-center gap-3 text-slate-400 text-sm line-through decoration-slate-300">
+                  <XCircle className="w-4 h-4 text-slate-300" /> Com marca d'água
                 </li>
-                <li className="flex items-center gap-3 text-slate-400 text-sm">
-                  <XCircle className="w-5 h-5 text-slate-300" /> Sem Scripts de Venda/Calendário
-                </li>
-                 <li className="flex items-center gap-3 text-slate-400 text-sm">
-                  <XCircle className="w-5 h-5 text-slate-300" /> Com marca d'água
+                 <li className="flex items-center gap-3 text-slate-400 text-sm line-through decoration-slate-300">
+                  <XCircle className="w-4 h-4 text-slate-300" /> Sem Identidade Visual
                 </li>
               </ul>
-              <Button onClick={onStart} variant="outline" className="w-full">
-                Começar Grátis
+              <Button onClick={onStart} variant="outline" className="w-full border-slate-200 text-slate-500 hover:bg-slate-50">
+                Contratar Estagiário
               </Button>
             </div>
 
-            {/* Pro Plan */}
-            <div className="bg-slate-900 p-8 rounded-3xl border border-slate-800 shadow-2xl relative overflow-hidden transform md:-translate-y-4">
-              <div className="absolute top-0 right-0 bg-brand-500 text-white text-xs font-bold px-3 py-1 rounded-bl-xl">
-                MAIS POPULAR
+            {/* Pro Plan - Agency Style (The Differentiators) */}
+            <div className="bg-white p-10 rounded-3xl border-2 border-brand-500 shadow-2xl relative overflow-hidden transform md:scale-105 z-10">
+              <div className="absolute top-0 right-0 bg-brand-500 text-white text-xs font-bold px-4 py-1.5 rounded-bl-xl shadow-lg uppercase tracking-wider">
+                Recomendado
               </div>
-              <h3 className="text-lg font-bold text-white mb-2">Profissional</h3>
-              <div className="flex items-baseline gap-1 mb-1">
-                <span className="text-4xl font-extrabold text-white">R$ 97</span>
-                <span className="text-slate-400">/ano</span>
-              </div>
-              <p className="text-slate-400 text-sm mb-6">Equivalente a R$ 8,08/mês</p>
               
-              <ul className="space-y-4 mb-8">
-                <li className="flex items-center gap-3 text-white text-sm">
-                  <CheckCircle2 className="w-5 h-5 text-brand-400" /> <strong>Gerações de Imagem Ilimitadas</strong>
-                </li>
-                <li className="flex items-center gap-3 text-white text-sm">
-                   <div className="bg-white/10 p-1 rounded">
-                      <Video className="w-3 h-3 text-purple-400 fill-current" />
-                   </div>
-                   <strong>Geração de Vídeo (Veo 3)</strong>
-                </li>
-                <li className="flex items-center gap-3 text-white text-sm">
-                  <CheckCircle2 className="w-5 h-5 text-brand-400" /> <strong>Modo Campanha</strong> (Scripts + Calendário)
-                </li>
-                <li className="flex items-center gap-3 text-white text-sm">
-                  <CheckCircle2 className="w-5 h-5 text-brand-400" /> <strong>10+ Estilos & Modo Livre</strong>
-                </li>
-                <li className="flex items-center gap-3 text-white text-sm">
-                  <CheckCircle2 className="w-5 h-5 text-brand-400" /> <strong>Modo Remix</strong> (Image-to-Image)
-                </li>
-                 <li className="flex items-center gap-3 text-white text-sm">
-                  <CheckCircle2 className="w-5 h-5 text-brand-400" /> <strong>Sem marca d'água</strong>
-                </li>
-              </ul>
-              <Button onClick={onStart} variant="primary" className="w-full py-4 text-lg bg-brand-500 hover:bg-brand-400 border-none">
-                Assinar Agora <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
-              <div className="mt-4 flex justify-center items-center gap-2 text-xs text-slate-400">
-                <Zap className="w-3 h-3 text-yellow-400" /> Traga sua chave API (BYOK) para máxima performance
+              <h3 className="text-xl font-extrabold text-slate-900 mb-1 flex items-center gap-2">
+                 Agência Privada <Crown className="w-5 h-5 text-yellow-500 fill-yellow-500" />
+              </h3>
+              <p className="text-xs text-brand-600 font-medium mb-6 h-8">Sua equipe completa de marketing, disponível 24h.</p>
+              
+              <div className="flex items-baseline gap-1 mb-2">
+                <span className="text-5xl font-extrabold text-slate-900">R$ 97</span>
+                <span className="text-slate-400 text-sm font-medium">/ano</span>
               </div>
+              <p className="text-slate-400 text-xs mb-8">
+                 Isso é apenas <span className="font-bold text-brand-600">R$ 8,08 por mês</span>
+              </p>
+              
+              <div className="space-y-4 mb-8">
+                {/* Diferencial 1: Volume */}
+                <div className="flex gap-3">
+                    <div className="mt-0.5 bg-green-100 p-1 rounded-full h-fit"><Check className="w-3 h-3 text-green-600" /></div>
+                    <div>
+                        <p className="text-sm font-bold text-slate-800">Equipe Ilimitada</p>
+                        <p className="text-xs text-slate-500">Gere quantas campanhas quiser, sem travas.</p>
+                    </div>
+                </div>
+
+                {/* Diferencial 2: Video (High Value) */}
+                <div className="flex gap-3">
+                    <div className="mt-0.5 bg-purple-100 p-1 rounded-full h-fit"><Video className="w-3 h-3 text-purple-600" /></div>
+                    <div>
+                        <p className="text-sm font-bold text-slate-800">Produtora de Vídeo (Veo)</p>
+                        <p className="text-xs text-slate-500">Crie comerciais de TV cinematográficos.</p>
+                    </div>
+                </div>
+
+                {/* Diferencial 3: Branding */}
+                <div className="flex gap-3">
+                    <div className="mt-0.5 bg-brand-100 p-1 rounded-full h-fit"><Palette className="w-3 h-3 text-brand-600" /></div>
+                    <div>
+                        <p className="text-sm font-bold text-slate-800">Sua Marca em Tudo</p>
+                        <p className="text-xs text-slate-500">Logo, cores e telefone aplicados automaticamente.</p>
+                    </div>
+                </div>
+                
+                 {/* Diferencial 4: Whitelabel */}
+                <div className="flex gap-3">
+                    <div className="mt-0.5 bg-blue-100 p-1 rounded-full h-fit"><ShieldCheck className="w-3 h-3 text-blue-600" /></div>
+                    <div>
+                        <p className="text-sm font-bold text-slate-800">100% Profissional</p>
+                        <p className="text-xs text-slate-500">Sem marcas d'água. Arte pronta para postar.</p>
+                    </div>
+                </div>
+              </div>
+
+              <Button onClick={onStart} variant="primary" className="w-full py-4 text-lg bg-brand-600 hover:bg-brand-700 border-none shadow-xl shadow-brand-500/30 group">
+                Contratar Minha Agência <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+              </Button>
+              <p className="text-center text-[10px] text-slate-400 mt-3 flex items-center justify-center gap-1">
+                  <Lock className="w-3 h-3" /> Pagamento Único • Acesso por 1 Ano
+              </p>
             </div>
 
           </div>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-white py-12 border-t border-slate-200 mt-12">
+      {/* Footer (Clean & Corporate) */}
+      <footer className="bg-white border-t border-slate-100 py-12">
         <div className="max-w-7xl mx-auto px-4 text-center">
-           <div className="flex justify-center items-center gap-6 mb-4">
-             <button onClick={() => setShowTerms(true)} className="text-sm text-slate-500 hover:text-brand-600 transition-colors flex items-center gap-1">
-                <FileText className="w-4 h-4" /> Termos de Uso
+           <div className="flex justify-center items-center gap-2 mb-6 opacity-50 grayscale hover:grayscale-0 transition-all">
+               <div className="bg-slate-200 p-1.5 rounded-lg">
+                   <Sparkles className="w-4 h-4 text-slate-500" />
+               </div>
+               <span className="font-bold text-slate-500">PromoGen Agency</span>
+           </div>
+           
+           <div className="flex justify-center items-center gap-6 mb-8">
+             <button onClick={() => setShowTerms(true)} className="text-sm text-slate-500 hover:text-brand-600 transition-colors flex items-center gap-1 font-medium">
+                <FileText className="w-4 h-4" /> Termos de Serviço da Agência
              </button>
            </div>
-          <p className="text-slate-500 text-sm">&copy; 2024 PromoGen IA. Todos os direitos reservados.</p>
+          <p className="text-slate-400 text-xs">&copy; 2024 PromoGen IA. Todos os direitos reservados. Fotos: Unsplash.</p>
         </div>
       </footer>
 
@@ -460,12 +469,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
         href={whatsappUrl}
         target="_blank" 
         rel="noopener noreferrer"
-        className="fixed bottom-6 right-6 bg-[#25D366] hover:bg-[#20bd5a] text-white p-4 rounded-full shadow-lg hover:shadow-xl transition-all hover:scale-110 z-50 flex items-center justify-center group"
+        className="fixed bottom-6 right-6 bg-[#25D366] hover:bg-[#20bd5a] text-white p-4 rounded-full shadow-xl hover:shadow-2xl transition-all hover:scale-110 z-50 flex items-center justify-center group"
         title="Falar com Suporte"
       >
         <MessageCircle className="w-7 h-7 fill-current" />
-        <span className="absolute right-full mr-3 bg-slate-900 text-white text-xs font-bold py-1 px-2 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-          Suporte WhatsApp
+        <span className="absolute right-full mr-3 bg-white text-slate-700 shadow-md text-xs font-bold py-2 px-3 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+          Fale com um Humano
         </span>
       </a>
     </div>
