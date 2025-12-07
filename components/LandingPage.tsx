@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { Sparkles, CheckCircle2, Zap, LayoutTemplate, Smartphone, ArrowRight, ShieldCheck, MessageCircle, Star, Quote, XCircle, Lock, FileText, MousePointerClick, Download, PenLine, Video, CalendarRange, Palette, Target, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Sparkles, CheckCircle2, Zap, LayoutTemplate, Smartphone, ArrowRight, ShieldCheck, MessageCircle, Star, Quote, XCircle, Lock, FileText, MousePointerClick, Download, PenLine, Video, CalendarRange, Palette, Target, ChevronLeft, ChevronRight, Image as ImageIcon } from 'lucide-react';
 import { Button } from './Button';
 import { storageService } from '../services/storageService';
 import { TermsModal } from './TermsModal';
@@ -10,19 +10,103 @@ interface LandingPageProps {
   onLogin: () => void;
 }
 
-// Updated Prompts with Specific Products for better visualization
+// IMAGENS COMERCIAL LEVEL - Focadas em Produto e Oferta
 const STYLE_EXAMPLES = [
-  { name: 'Minimalista', prompt: 'white wireless headphones product photography minimalist clean vast white space soft shadows studio lighting high quality', color: 'from-gray-900', sub: 'Eletrônicos & Design' },
-  { name: 'Luxo / Gold', prompt: 'luxury golden perfume bottle on black marble podium elegant gold textures cinematic lighting bokeh premium product', color: 'from-yellow-600', sub: 'Joias & Perfumes' },
-  { name: 'Gourmet', prompt: 'delicious gourmet burger with melting cheese steam rising fresh ingredients warm lighting wooden table close up food photography', color: 'from-orange-600', sub: 'Delivery & Restaurantes' },
-  { name: 'Tech / Neon', prompt: 'futuristic gaming mouse neon blue and purple lights cyberpunk background glowing smoke high tech sleek product', color: 'from-blue-600', sub: 'Gamers & Informática' },
-  { name: 'Orgânico', prompt: 'green herbal skincare bottle on stone podium nature leaves sunlight moss eco friendly product photography fresh', color: 'from-green-600', sub: 'Cosméticos Naturais' },
-  { name: 'Rústico', prompt: 'bag of roasted coffee beans on rustic aged wood table vintage atmosphere warm lighting steam aroma close up', color: 'from-amber-700', sub: 'Cafés & Artesanato' },
-  { name: 'Pop Art', prompt: 'colorful sneakers floating pop art style vibrant yellow and pink background halftone patterns comic book style high contrast', color: 'from-pink-500', sub: 'Moda Jovem & Streetwear' },
-  { name: 'Corporativo', prompt: 'modern laptop open on glass desk office background blurred skyscrapers professional business atmosphere blue tones', color: 'from-slate-700', sub: 'Serviços & B2B' },
-  { name: 'Fitness', prompt: 'black protein shaker bottle with water droplets dramatic gym lighting red backlight smoke intense workout atmosphere', color: 'from-red-600', sub: 'Suplementos & Academia' },
-  { name: 'Infantil', prompt: 'cute plush teddy bear toy pastel colors balloons background soft lighting happy 3d render style playful', color: 'from-purple-500', sub: 'Brinquedos & Roupas' },
+  { 
+      name: 'Gourmet', 
+      prompt: 'High end burger photography',
+      image: 'https://images.unsplash.com/photo-1561758033-d89a9ad46330?auto=format&fit=crop&w=800&q=80', // Hambúrguer Dark Background (Vibe de anúncio)
+      color: 'from-orange-700', 
+      sub: 'Hamburguerias & Delivery' 
+  },
+  { 
+      name: 'Luxo / Gold', 
+      prompt: 'Luxury perfume bottle gold lighting',
+      image: 'https://images.unsplash.com/photo-1592945403244-b3fbafd7f539?auto=format&fit=crop&w=800&q=80', // Perfume com reflexo dourado dramático
+      color: 'from-yellow-700', 
+      sub: 'Joias & Cosméticos' 
+  },
+  { 
+      name: 'Tech / Neon', 
+      prompt: 'Cyberpunk gaming setup neon',
+      image: 'https://images.unsplash.com/photo-1635322966219-b75ed3a93227?auto=format&fit=crop&w=800&q=80', // Setup extremamente neon/roxo (Vibe AI Gen)
+      color: 'from-purple-600', 
+      sub: 'Gamers & Eletrônicos' 
+  },
+  { 
+      name: 'Minimalista', 
+      prompt: 'Minimalist white product',
+      image: 'https://images.unsplash.com/photo-1629198688000-71f23e745b6e?auto=format&fit=crop&w=800&q=80', // Fone branco em fundo branco (Super clean)
+      color: 'from-gray-800', 
+      sub: 'Design & Acessórios' 
+  },
+  { 
+      name: 'Fitness', 
+      prompt: 'Gym supplement dark gritty',
+      image: 'https://images.unsplash.com/photo-1593095948071-474c5cc2989d?auto=format&fit=crop&w=800&q=80', // Tênis/Equipamento com luz dramática de academia
+      color: 'from-red-700', 
+      sub: 'Academia & Suplementos' 
+  },
+  { 
+      name: 'Orgânico', 
+      prompt: 'Natural skincare product leaves',
+      image: 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?auto=format&fit=crop&w=800&q=80', // Produto de pele com sombra de folha (Vibe SPA)
+      color: 'from-emerald-700', 
+      sub: 'Produtos Naturais' 
+  },
+  { 
+      name: 'Pop Art', 
+      prompt: 'Colorful sneakers pop art background',
+      image: 'https://images.unsplash.com/photo-1515955656352-a1fa3ffcd111?auto=format&fit=crop&w=800&q=80', // Tênis Azul em fundo vibrante
+      color: 'from-pink-600', 
+      sub: 'Moda Jovem & Street' 
+  },
+  { 
+      name: 'Rústico', 
+      prompt: 'Coffee beans dark wood',
+      image: 'https://images.unsplash.com/photo-1511920170033-f8396924c348?auto=format&fit=crop&w=800&q=80', // Café super texturizado
+      color: 'from-amber-800', 
+      sub: 'Cafeterias & Artesanato' 
+  },
+  { 
+      name: 'Corporativo', 
+      prompt: 'Modern office desk',
+      image: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=800&q=80', // Arquitetura moderna vidro/cidade
+      color: 'from-slate-800', 
+      sub: 'Consultoria & B2B' 
+  },
+  { 
+      name: 'Infantil', 
+      prompt: 'Cute plush toy pastel',
+      image: 'https://images.unsplash.com/photo-1515488042361-ee00e0ddd4e4?auto=format&fit=crop&w=800&q=80', // Brinquedos coloridos e fofos
+      color: 'from-violet-600', 
+      sub: 'Brinquedos & Festas' 
+  },
 ];
+
+// Componente visual refinado
+const StyleCard = ({ style }: { style: any }) => {
+    return (
+        <div className="group relative aspect-square rounded-2xl overflow-hidden shadow-xl hover:shadow-2xl transition-all duration-300 bg-slate-900 border border-slate-800">
+            <img 
+                src={style.image} 
+                alt={`Estilo ${style.name}`} 
+                className="w-full h-full object-cover opacity-90 group-hover:opacity-100 group-hover:scale-110 transition-transform duration-700"
+                loading="lazy"
+            />
+            {/* Overlay Gradiente Profundo para Texto Legível */}
+            <div className={`absolute inset-0 bg-gradient-to-t ${style.color} via-black/10 to-transparent opacity-80 group-hover:opacity-90 transition-opacity flex flex-col justify-end p-6 z-20`}>
+                <span className="text-white font-bold text-2xl tracking-tight translate-y-1 group-hover:translate-y-0 transition-transform duration-300 shadow-sm">{style.name}</span>
+                <span className="text-white/90 text-xs font-semibold tracking-wider uppercase mt-1 translate-y-1 group-hover:translate-y-0 transition-transform duration-300 delay-75">{style.sub}</span>
+            </div>
+            
+            {/* Badge "AI Style" */}
+            <div className="absolute top-3 right-3 bg-white/20 backdrop-blur-md px-2 py-1 rounded-md border border-white/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <Sparkles className="w-3 h-3 text-white" />
+            </div>
+        </div>
+    );
+};
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) => {
   
@@ -41,8 +125,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
 
     // Responsive Carousel Logic
     const handleResize = () => {
-        if (window.innerWidth < 768) {
+        if (window.innerWidth < 640) {
             setItemsPerView(1);
+        } else if (window.innerWidth < 1024) {
+            setItemsPerView(2);
         } else {
             setItemsPerView(3);
         }
@@ -251,18 +337,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onStart, onLogin }) =>
                                 className="flex-shrink-0 px-2"
                                 style={{ width: `${100 / itemsPerView}%` }}
                             >
-                                <div className="group relative aspect-square rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition-all duration-300 bg-slate-200">
-                                    <img 
-                                        src={`https://image.pollinations.ai/prompt/${encodeURIComponent(style.prompt)}?width=800&height=800&nologo=true&seed=${index + 100}&model=flux`} 
-                                        alt={`Estilo ${style.name}`} 
-                                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                                        loading="lazy"
-                                    />
-                                    <div className={`absolute inset-0 bg-gradient-to-t ${style.color} via-transparent to-transparent opacity-0 group-hover:opacity-90 transition-opacity flex flex-col justify-end p-6`}>
-                                        <span className="text-white font-bold text-xl">{style.name}</span>
-                                        <span className="text-white/80 text-sm">{style.sub}</span>
-                                    </div>
-                                </div>
+                                <StyleCard style={style} />
                             </div>
                         ))}
                     </div>
